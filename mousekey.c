@@ -63,10 +63,10 @@ void mousekey_decode(uint8_t code)
     else if (code == KB_MS_BTN3)    report.buttons |= MOUSE_BTN3;
     else if (code == KB_MS_BTN4)    report.buttons |= MOUSE_BTN4;
     else if (code == KB_MS_BTN5)    report.buttons |= MOUSE_BTN5;
-    else if (code == KB_MS_WH_UP)   report.v += 1;
-    else if (code == KB_MS_WH_DOWN) report.v -= 1;
-    else if (code == KB_MS_WH_LEFT) report.h -= 1;
-    else if (code == KB_MS_WH_RIGHT)report.h += 1;
+    else if (code == KB_MS_WH_UP)   report.v += move_unit()/4;
+    else if (code == KB_MS_WH_DOWN) report.v -= move_unit()/4;
+    else if (code == KB_MS_WH_LEFT) report.h -= move_unit()/4;
+    else if (code == KB_MS_WH_RIGHT)report.h += move_unit()/4;
 }
 
 bool mousekey_changed(void)

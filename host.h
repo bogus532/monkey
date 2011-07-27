@@ -48,6 +48,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define MOUSE_BTN5 (1<<4)
 
 // Consumer Page(0x0C)
+// following are supported by Windows: http://msdn.microsoft.com/en-us/windows/hardware/gg463372.aspx
 #define AUDIO_MUTE              0x00E2
 #define AUDIO_VOL_UP            0x00E9
 #define AUDIO_VOL_DOWN          0x00EA
@@ -66,6 +67,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define AC_STOP                 0x0226
 #define AC_REFRESH              0x0227
 #define AC_BOOKMARKS            0x022A
+// supplement for Bluegiga iWRAP HID(not supported by Windows?)
+#define AL_LOCK                 0x019E
+#define TRANSPORT_RECORD        0x00B2
+#define TRANSPORT_REWIND        0x00B4
+#define TRANSPORT_EJECT         0x00B8
+#define AC_MINIMIZE             0x0206
 
 // Generic Desktop Page(0x01)
 #define SYSTEM_POWER_DOWN       0x0081
@@ -80,7 +87,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #   else
 #       define REPORT_KEYS KBD_REPORT_KEYS
 #   endif
-#elif defined(HOST_VUSB)
+#else
 #   define REPORT_KEYS 6
 #endif
 
