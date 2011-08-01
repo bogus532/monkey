@@ -3,7 +3,9 @@ OPT_DEFS += -DHOST_VUSB
 SRC =	usbdrv.c \
 	usbdrvasm.S \
 	oddebug.c \
-	sendchar_usart.c
+	sendchar_uart.c \
+	uart.c
+
 SRC +=	$(TARGET_SRC)
 
 

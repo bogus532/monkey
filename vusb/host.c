@@ -132,9 +132,11 @@ static uint8_t kbuf_tail = 0;
 
 void host_vusb_keyboard_send(void)
 {
-    if (usbInterruptIsReady() && kbuf_head != kbuf_tail) {
-        usbSetInterrupt((void *)&kbuf[kbuf_tail], sizeof(report_keyboard_t));
-        kbuf_tail = (kbuf_tail + 1) % KBUF_SIZE;
+    if (usbInterruptIsReady()) {
+       if (kbuf_head != kbuf_tail) {
+            usbSetInterrupt((void *)&kbuf[kbuf_tail], sizeof(report_keyboard_t));
+            kbuf_tail = (kbuf_tail + 1) % KBUF_SIZE;
+       }
     }
 }
 
@@ -156,8 +158,6 @@ void host_mouse_send(report_mouse_t *report)
     report->report_id = REPORT_ID_MOUSE;
     if (usbInterruptIsReady3()) {
         usbSetInterrupt3((void *)report, sizeof(*report));
-    } else {
-        debug("Int3 not ready\n");
     }
 }
 #endif
@@ -171,8 +171,6 @@ void host_system_send(uint16_t data)
     report[2] = (data>>8)&0xFF;
     if (usbInterruptIsReady3()) {
         usbSetInterrupt3((void *)&report, sizeof(report));
-    } else {
-        debug("Int3 not ready\n");
     }
 }
 
@@ -188,8 +186,6 @@ void host_consumer_send(uint16_t data)
     report[2] = (data>>8)&0xFF;
     if (usbInterruptIsReady3()) {
         usbSetInterrupt3((void *)&report, sizeof(report));
-    } else {
-        debug("Int3 not ready\n");
     }
 }
 #endif
@@ -213,32 +209,36 @@ usbRequest_t    *rq = (void *)data;
 
     if((rq->bmRequestType & USBRQ_TYPE_MASK) == USBRQ_TYPE_CLASS){    /* class request type */
         if(rq->bRequest == USBRQ_HID_GET_REPORT){
-            debug(" GET_REPORT");
+            debug("GET_REPORT:");
             /* we only have one report type, so don't look at wValue */
             usbMsgPtr = (void *)keyboard_report_prev;
             return sizeof(*keyboard_report_prev);
         }else if(rq->bRequest == USBRQ_HID_GET_IDLE){
-            debug(" GET_IDLE: ");
-            debug_hex(idleRate);
+            debug("GET_IDLE: ");
+            //debug_hex(idleRate);
             usbMsgPtr = &idleRate;
             return 1;
         }else if(rq->bRequest == USBRQ_HID_SET_IDLE){
             idleRate = rq->wValue.bytes[1];
-            debug(" SET_IDLE: ");
+            debug("SET_IDLE: ");
             debug_hex(idleRate);
         }else if(rq->bRequest == USBRQ_HID_SET_REPORT){
-            //debug(" SET_REPORT: ");
+            debug("SET_REPORT: ");
+            // Report Type: 0x02(Out)/ReportID: 0x00(none) && Interface: 0(keyboard)
             if (rq->wValue.word == 0x0200 && rq->wIndex.word == 0) {
+                debug("SET_LED: ");
                 last_req.kind = SET_LED;
                 last_req.len = rq->wLength.word;
             }
             return USB_NO_MSG; // to get data in usbFunctionWrite
+        } else {
+            debug("UNKNOWN:");
         }
-        debug("\n");
     }else{
-        debug("VENDOR\n");
+        debug("VENDOR:");
         /* no vendor specific requests implemented */
     }
+    debug("\n");
     return 0;   /* default for not implemented requests: return no data back to host */
 }
 
@@ -249,7 +249,9 @@ uchar usbFunctionWrite(uchar *data, uchar len)
     }
     switch (last_req.kind) {
         case SET_LED:
-            //debug("SET_LED\n");
+            debug("SET_LED: ");
+            debug_hex(data[0]);
+            debug("\n");
             keyboard_leds = data[0];
             last_req.len = 0;
             return 1;
@@ -484,13 +486,14 @@ USB_PUBLIC usbMsgLen_t usbFunctionDescriptor(struct usbRequest *rq)
 {
     usbMsgLen_t len = 0;
 
+/*
     debug("usbFunctionDescriptor: ");
     debug_hex(rq->bmRequestType); debug(" ");
     debug_hex(rq->bRequest); debug(" ");
     debug_hex16(rq->wValue.word); debug(" ");
     debug_hex16(rq->wIndex.word); debug(" ");
     debug_hex16(rq->wLength.word); debug("\n");
-
+*/
     switch (rq->wValue.bytes[1]) {
 #if USB_CFG_DESCR_PROPS_CONFIGURATION
         case USBDESCR_CONFIG:
@@ -499,8 +502,16 @@ USB_PUBLIC usbMsgLen_t usbFunctionDescriptor(struct usbRequest *rq)
             break;
 #endif
         case USBDESCR_HID:
-            usbMsgPtr = (unsigned char *)(usbDescriptorConfiguration + 18);
-            len = 9;
+            switch (rq->wValue.bytes[0]) {
+                case 0:
+                    usbMsgPtr = (unsigned char *)(usbDescriptorConfiguration + 9 + 9);
+                    len = 9;
+                    break;
+                case 1:
+                    usbMsgPtr = (unsigned char *)(usbDescriptorConfiguration + 9 + (9 + 9 + 7) + 9);
+                    len = 9;
+                    break;
+            }
             break;
         case USBDESCR_HID_REPORT:
             /* interface index */
@@ -516,6 +527,6 @@ USB_PUBLIC usbMsgLen_t usbFunctionDescriptor(struct usbRequest *rq)
             }
             break;
     }
-    debug("desc len: "); debug_hex(len); debug("\n");
+    //debug("desc len: "); debug_hex(len); debug("\n");
     return len;
 }
