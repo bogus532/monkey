@@ -141,31 +141,35 @@ uint8_t matrix_scan(void)
     for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
         for (uint8_t col = 0; col < MATRIX_COLS; col++) {
             KEY_SELECT(row, col);
-            _delay_us(40);  // from logic analyzer chart
+            _delay_us(10);
+
+            // Not sure this is needed. This just emulates HHKB controller's behaviour.
             if (matrix_prev[row] & (1<<col)) {
                 KEY_PREV_ON();
             }
-            _delay_us(7);  // from logic analyzer chart
+            _delay_us(5);
 
-#if HOST_VUSB
-            // to avoid V-USB interrupt during read key state
+            // NOTE: KEY_STATE is valid only in 20us after KEY_ENABLE.
+            // If V-USB interrupts in this section we could lose 40us or so
+            // and would read invalid value from KEY_STATE.
             uint8_t sreg = SREG;
             cli();
-#endif
             KEY_ENABLE();
-            _delay_us(10);  // from logic analyzer chart
+            // Wait for KEY_STATE outputs its value. 1us will be enough.
+            // NOTE: 10us is too long for V-USB to keep USB connection.
+            _delay_us(1);
             if (KEY_STATE()) {
                 matrix[row] &= ~(1<<col);
             } else {
                 matrix[row] |= (1<<col);
             }
-#if HOST_VUSB
             SREG = sreg;
-#endif
 
             KEY_PREV_OFF();
             KEY_UNABLE();
-            _delay_us(150);  // from logic analyzer chart
+            // NOTE: KEY_STATE keep its state in 20us after KEY_ENABLE.
+            // This takes 25us or more to make sure KEY_STATE returns to idle state.
+            _delay_us(30);
         }
     }
     return 1;

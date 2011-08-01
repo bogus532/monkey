@@ -15,44 +15,43 @@
 #include "oddebug.h"
 #include "host_vusb.h"
 #include "keyboard.h"
+#include "uart.h"
+#include "debug.h"
 
 
-#if 0
-#define DEBUGP_INIT() do { DDRC = 0xFF; } while (0)
-#define DEBUGP(x) do { PORTC = x; } while (0)
-#else
-#define DEBUGP_INIT()
-#define DEBUGP(x)
-#endif
-
-
-int main(void)
+/* This is from main.c of USBaspLoader */
+static void initForUsbConnectivity(void)
 {
-    DEBUGP_INIT();
-    wdt_enable(WDTO_1S);
-    odDebugInit();
-    usbInit();
-
-    /* enforce re-enumeration, do this while interrupts are disabled! */
-    usbDeviceDisconnect();
     uint8_t i = 0;
-    /* fake USB disconnect for > 250 ms */
-    while(--i){
+
+    usbInit();
+    /* enforce USB re-enumerate: */
+    usbDeviceDisconnect();  /* do this while interrupts are disabled */
+    while(--i){         /* fake USB disconnect for > 250 ms */
         wdt_reset();
         _delay_ms(1);
     }
     usbDeviceConnect();
+    sei();
+}
 
+#define CPU_PRESCALE(n)    (CLKPR = 0x80, CLKPR = (n))
+int main(void)
+{
+    CPU_PRESCALE(0);
+    uart_init(115200);
+    debug_enable = true;
+    print_enable = true;
+    debug("keyboard_init()\n");
     keyboard_init();
 
-    sei();
+    debug("initForUsbConnectivity()\n");
+    initForUsbConnectivity();
+
+    debug("main loop\n");
     while (1) {
-        DEBUGP(0x1);
-        wdt_reset();
         usbPoll();
-        DEBUGP(0x2);
         keyboard_proc();
-        DEBUGP(0x3);
         host_vusb_keyboard_send();
     }
 }
