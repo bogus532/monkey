@@ -87,7 +87,7 @@ void mousekey_send(void)
 
     // send immediately when buttun state is changed
     if (report.buttons == report_prev.buttons) {
-        if (timer_elapsed(last_timer) < 5) {
+        if (timer_elapsed(last_timer) < 100) {
             mousekey_clear_report();
             return;
         }

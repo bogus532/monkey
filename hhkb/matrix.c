@@ -25,8 +25,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <util/delay.h>
 #include "print.h"
 #include "util.h"
+#include "timer.h"
 #include "matrix.h"
 
+
+// Timer resolution check
+#if (1000000/TIMER_RAW_FREQ > 20)
+#   error "Timer resolution(>20us) is not enough for HHKB matrix scan tweak on V-USB."
+#endif
 
 #if (MATRIX_COLS > 16)
 #   error "MATRIX_COLS must not exceed 16"
@@ -152,18 +158,21 @@ uint8_t matrix_scan(void)
             // NOTE: KEY_STATE is valid only in 20us after KEY_ENABLE.
             // If V-USB interrupts in this section we could lose 40us or so
             // and would read invalid value from KEY_STATE.
-            uint8_t sreg = SREG;
-            cli();
+            uint8_t last = TIMER_RAW;
+
             KEY_ENABLE();
             // Wait for KEY_STATE outputs its value. 1us will be enough.
-            // NOTE: 10us is too long for V-USB to keep USB connection.
             _delay_us(1);
             if (KEY_STATE()) {
                 matrix[row] &= ~(1<<col);
             } else {
                 matrix[row] |= (1<<col);
             }
-            SREG = sreg;
+
+            // Ignore if this code region execution time elapses more than 20us.
+            if (TIMER_DIFF_RAW(TIMER_RAW, last) > 20/(1000000/TIMER_RAW_FREQ)) {
+                matrix[row] = matrix_prev[row];
+            }
 
             KEY_PREV_OFF();
             KEY_UNABLE();
