@@ -53,7 +53,7 @@ int main(void)
         if (uart_available()) {
             uint8_t c;
             c = uart_getchar();
-            uart_putchar(c);
+            //uart_putchar(c);
             xmit(c);
         }
     }

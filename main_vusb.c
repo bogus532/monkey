@@ -8,13 +8,15 @@
  * This Revision: $Id: main.c 790 2010-05-30 21:00:26Z cs $
  */
 #include <stdint.h>
-#include <avr/wdt.h>
 #include <avr/interrupt.h>
+#include <avr/wdt.h>
+#include <avr/sleep.h>
 #include <util/delay.h>
 #include "usbdrv.h"
 #include "oddebug.h"
 #include "host_vusb.h"
 #include "keyboard.h"
+#include "timer.h"
 #include "uart.h"
 #include "debug.h"
 
@@ -49,7 +51,35 @@ int main(void)
     initForUsbConnectivity();
 
     debug("main loop\n");
+#ifdef USB_COUNT_SOF
+    bool suspended = false;
+    uint16_t last_timer = timer_read();
+#endif
     while (1) {
+#ifdef USB_COUNT_SOF
+        if (usbSofCount == 0) {
+            // Suspend when no SOF in 3ms-10ms(7.1.7.4 Suspending of USB1.1)
+            if (timer_elapsed(last_timer) > 5) {
+                suspended = true;
+                uart_putchar('S');
+                _delay_ms(1);
+
+                cli();
+                set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+                sleep_enable();
+                sleep_bod_disable();
+                sei();
+                sleep_cpu();
+                sleep_disable();
+
+                _delay_ms(10);
+                uart_putchar('W');
+            }
+        } else {
+            usbSofCount = 0;
+            last_timer = timer_read();
+        }
+#endif
         usbPoll();
         keyboard_proc();
         host_vusb_keyboard_send();

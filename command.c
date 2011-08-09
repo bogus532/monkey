@@ -35,6 +35,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #   endif
 #endif
 
+#ifdef HOST_VUSB
+#   include "usbdrv.h"
+#endif
+
 
 static void help(void);
 static void switch_layer(uint8_t layer);
@@ -122,6 +126,12 @@ uint8_t command_proc(void)
             print("usb_keyboard_protocol: "); phex(usb_keyboard_protocol); print("\n");
             print("usb_keyboard_idle_config:"); phex(usb_keyboard_idle_config); print("\n");
             print("usb_keyboard_idle_count:"); phex(usb_keyboard_idle_count); print("\n");
+#endif
+
+#ifdef HOST_VUSB
+#   ifdef USB_COUNT_SOF
+            print("usbSofCount: "); phex(usbSofCount); print("\n");
+#   endif
 #endif
             break;
 #ifdef USB_NKRO_ENABLE

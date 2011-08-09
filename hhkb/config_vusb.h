@@ -46,4 +46,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #endif
 
 
+#define DEBUG_LED 1
+#define DEBUG_LED_CONFIG    (DDRD |= (1<<4))
+#define DEBUG_LED_OFF       (PORTD |= (1<<4))
+#define DEBUG_LED_ON        (PORTD &= ~(1<<4))
+
 #endif
