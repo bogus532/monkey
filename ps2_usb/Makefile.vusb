@@ -48,8 +48,8 @@ F_CPU = 20000000
 #   comment out to disable the options.
 #
 MOUSEKEY_ENABLE = yes	# Mouse keys
-USB_EXTRA_ENABLE = yes	# Audio control and System control
-#USB_NKRO_ENABLE = yes	# USB Nkey Rollover
+EXTRAKEY_ENABLE = yes	# Audio control and System control
+#NKRO_ENABLE = yes	# USB Nkey Rollover
 
 
 

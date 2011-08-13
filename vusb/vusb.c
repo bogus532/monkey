@@ -16,121 +16,27 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <stdint.h>
-#include <avr/interrupt.h>
 #include "usbdrv.h"
 #include "usbconfig.h"
+#include "report.h"
 #include "print.h"
-#include "usb_keycodes.h"
-#include "host.h"
-#include "host_vusb.h"
 #include "debug.h"
+#include "host_driver.h"
+#include "vusb.h"
 
 
-static report_keyboard_t report0;
-static report_keyboard_t report1;
-report_keyboard_t *keyboard_report = &report0;
-report_keyboard_t *keyboard_report_prev = &report1;
+static uint8_t vusb_keyboard_leds = 0;
+static uint8_t vusb_idle_rate = 0;
 
-static uint8_t keyboard_leds = 0;
-static uchar   idleRate = 0;
-
-uint8_t host_keyboard_leds(void)
-{
-    return keyboard_leds;
-}
-
-
-/*------------------------------------------------------------------*
- * Keyboard report operations
- *------------------------------------------------------------------*/
-void host_add_key(uint8_t code)
-{
-    int8_t i = 0;
-    int8_t empty = -1;
-    for (; i < REPORT_KEYS; i++) {
-        if (keyboard_report_prev->keys[i] == code) {
-            keyboard_report->keys[i] = code;
-            break;
-        }
-        if (empty == -1 && keyboard_report_prev->keys[i] == KB_NO && keyboard_report->keys[i] == KB_NO) {
-            empty = i;
-        }
-    }
-    if (i == REPORT_KEYS && empty != -1) {
-        keyboard_report->keys[empty] = code;
-    }
-}
-
-void host_add_mod_bit(uint8_t mod)
-{
-    keyboard_report->mods |= mod;
-}
-
-void host_set_mods(uint8_t mods)
-{
-    keyboard_report->mods = mods;
-}
-
-void host_add_code(uint8_t code)
-{
-    if (IS_MOD(code)) {
-        host_add_mod_bit(MOD_BIT(code));
-    } else {
-        host_add_key(code);
-    }
-}
-
-void host_swap_keyboard_report(void)
-{
-    uint8_t sreg = SREG;
-    cli();
-    report_keyboard_t *tmp = keyboard_report_prev;
-    keyboard_report_prev = keyboard_report;
-    keyboard_report = tmp;
-    SREG = sreg;
-}
-
-void host_clear_keyboard_report(void)
-{
-    keyboard_report->mods = 0;
-    for (int8_t i = 0; i < REPORT_KEYS; i++) {
-        keyboard_report->keys[i] = 0;
-    }
-}
-
-uint8_t host_has_anykey(void)
-{
-    uint8_t cnt = 0;
-    for (int i = 0; i < REPORT_KEYS; i++) {
-        if (keyboard_report->keys[i])
-            cnt++;
-    }
-    return cnt;
-}
-
-uint8_t host_get_first_key(void)
-{
-#ifdef USB_NKRO_ENABLE
-    if (keyboard_nkro) {
-        uint8_t i = 0;
-        for (; i < REPORT_KEYS && !keyboard_report->keys[i]; i++)
-            ;
-        return i<<3 | biton(keyboard_report->keys[i]);
-    }
-#endif
-    return keyboard_report->keys[0];
-}
-
-
-/*------------------------------------------------------------------*
- * Keyboard report send buffer
- *------------------------------------------------------------------*/
+/* Keyboard report send buffer */
 #define KBUF_SIZE 16
 static report_keyboard_t kbuf[KBUF_SIZE];
 static uint8_t kbuf_head = 0;
 static uint8_t kbuf_tail = 0;
 
-void host_vusb_keyboard_send(void)
+
+/* transfer keyboard report from buffer */
+void vusb_transfer_keyboard(void)
 {
     if (usbInterruptIsReady()) {
        if (kbuf_head != kbuf_tail) {
@@ -140,11 +46,38 @@ void host_vusb_keyboard_send(void)
     }
 }
 
-void host_send_keyboard_report(void)
+
+/*------------------------------------------------------------------*
+ * Host driver
+ *------------------------------------------------------------------*/
+static uint8_t keyboard_leds(void);
+static void send_keyboard(report_keyboard_t *report);
+static void send_mouse(report_mouse_t *report);
+static void send_system(uint16_t data);
+static void send_consumer(uint16_t data);
+
+static host_driver_t driver = {
+        keyboard_leds,
+        send_keyboard,
+        send_mouse,
+        send_system,
+        send_consumer
+};
+
+host_driver_t *vusb_driver(void)
+{
+    return &driver;
+}
+
+static uint8_t keyboard_leds(void) {
+    return vusb_keyboard_leds;
+}
+
+static void send_keyboard(report_keyboard_t *report)
 {
     uint8_t next = (kbuf_head + 1) % KBUF_SIZE;
     if (next != kbuf_tail) {
-        kbuf[kbuf_head] = *keyboard_report;
+        kbuf[kbuf_head] = *report;
         kbuf_head = next;
     } else {
         debug("kbuf: full\n");
@@ -152,18 +85,15 @@ void host_send_keyboard_report(void)
 }
 
 
-#if defined(MOUSEKEY_ENABLE) || defined(PS2_MOUSE_ENABLE)
-void host_mouse_send(report_mouse_t *report)
+static void send_mouse(report_mouse_t *report)
 {
     report->report_id = REPORT_ID_MOUSE;
     if (usbInterruptIsReady3()) {
         usbSetInterrupt3((void *)report, sizeof(*report));
     }
 }
-#endif
 
-#ifdef USB_EXTRA_ENABLE
-void host_system_send(uint16_t data)
+static void send_system(uint16_t data)
 {
     // Not need static?
     static uint8_t report[] = { REPORT_ID_SYSTEM, 0, 0 };
@@ -174,7 +104,7 @@ void host_system_send(uint16_t data)
     }
 }
 
-void host_consumer_send(uint16_t data)
+static void send_consumer(uint16_t data)
 {
     static uint16_t last_data = 0;
     if (data == last_data) return;
@@ -188,7 +118,6 @@ void host_consumer_send(uint16_t data)
         usbSetInterrupt3((void *)&report, sizeof(report));
     }
 }
-#endif
 
 
 
@@ -215,13 +144,13 @@ usbRequest_t    *rq = (void *)data;
             return sizeof(*keyboard_report_prev);
         }else if(rq->bRequest == USBRQ_HID_GET_IDLE){
             debug("GET_IDLE: ");
-            //debug_hex(idleRate);
-            usbMsgPtr = &idleRate;
+            //debug_hex(vusb_idle_rate);
+            usbMsgPtr = &vusb_idle_rate;
             return 1;
         }else if(rq->bRequest == USBRQ_HID_SET_IDLE){
-            idleRate = rq->wValue.bytes[1];
+            vusb_idle_rate = rq->wValue.bytes[1];
             debug("SET_IDLE: ");
-            debug_hex(idleRate);
+            debug_hex(vusb_idle_rate);
         }else if(rq->bRequest == USBRQ_HID_SET_REPORT){
             debug("SET_REPORT: ");
             // Report Type: 0x02(Out)/ReportID: 0x00(none) && Interface: 0(keyboard)
@@ -252,7 +181,7 @@ uchar usbFunctionWrite(uchar *data, uchar len)
             debug("SET_LED: ");
             debug_hex(data[0]);
             debug("\n");
-            keyboard_leds = data[0];
+            vusb_keyboard_leds = data[0];
             last_req.len = 0;
             return 1;
             break;

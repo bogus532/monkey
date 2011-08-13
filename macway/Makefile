@@ -37,8 +37,8 @@ F_CPU = 16000000
 #
 MOUSEKEY_ENABLE = yes	# Mouse keys
 #PS2_MOUSE_ENABLE = yes	# PS/2 mouse(TrackPoint) support
-USB_EXTRA_ENABLE = yes	# Audio control and System control
-#USB_NKRO_ENABLE = yes	# USB Nkey Rollover
+EXTRAKEY_ENABLE = yes	# Audio control and System control
+#NKRO_ENABLE = yes	# USB Nkey Rollover
 
 
 

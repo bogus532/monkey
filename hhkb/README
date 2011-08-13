@@ -22,7 +22,7 @@ Build for Teensy
     IS_COMMAND
 2. Edit Makefile for MCU setting and build options.
     MCU, F_CPU
-    MOUSEKEY_ENABLE, USB_EXTRA_ENABLE, USB_NKRO_ENABLE
+    MOUSEKEY_ENABLE, EXTRAKEY_ENABLE, NKRO_ENABLE
 3. Build hex file.
     $ make
 4. Program MCU.
@@ -38,7 +38,7 @@ Build for V-USB
     IS_COMMAND
 2. Edit Makefile.vusb for MCU setting and build options.
     MCU, F_CPU
-    MOUSEKEY_ENABLE, USB_EXTRA_ENABLE, USB_NKRO_ENABLE
+    MOUSEKEY_ENABLE, EXTRAKEY_ENABLE, NKRO_ENABLE
 3. Build hex file.
     $ make -f Makefile.vusb
 4. Program MCU.

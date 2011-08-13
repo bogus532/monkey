@@ -21,8 +21,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdint.h>
 
 #ifndef TIMER_PRESCALER
-#   if F_CPU >= 16000000
-#       define TIMER_PRESCALER      128
+#   if F_CPU > 16000000
+#       define TIMER_PRESCALER      256
 #   elif F_CPU >= 4000000
 #       define TIMER_PRESCALER      64
 #   else

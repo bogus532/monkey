@@ -1,6 +1,7 @@
 OPT_DEFS += -DHOST_PJRC
 
-SRC =	usb_keyboard.c \
+SRC =	pjrc.c \
+	usb_keyboard.c \
 	usb_debug.c \
 	usb.c \
 	jump_bootloader.c
@@ -16,6 +17,6 @@ ifdef $(or MOUSEKEY_ENABLE, PS2_MOUSE_ENABLE)
     SRC += usb_mouse.c
 endif
 
-ifdef USB_EXTRA_ENABLE
+ifdef EXTRAKEY_ENABLE
     SRC += usb_extra.c
 endif

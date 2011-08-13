@@ -18,34 +18,35 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdint.h>
 #include <avr/interrupt.h>
 #include "usb_keycodes.h"
-#include "usb_keyboard.h"
-#if defined(MOUSEKEY_ENABLE) || defined(PS2_MOUSE_ENABLE)
-#include "usb_mouse.h"
-#endif
-#ifdef EXTRAKEY_ENABLE
-#include "usb_extra.h"
-#endif
-#include "debug.h"
 #include "host.h"
 #include "util.h"
+#include "debug.h"
 
 
 #ifdef NKRO_ENABLE
 bool keyboard_nkro = false;
 #endif
 
+static host_driver_t *driver;
 static report_keyboard_t report0;
 static report_keyboard_t report1;
 report_keyboard_t *keyboard_report = &report0;
 report_keyboard_t *keyboard_report_prev = &report1;
 
+
 static inline void add_key_byte(uint8_t code);
 static inline void add_key_bit(uint8_t code);
 
 
+void host_set_driver(host_driver_t *d)
+{
+    driver = d;
+}
+
 uint8_t host_keyboard_leds(void)
 {
-    return usb_keyboard_leds;
+    if (!driver) return 0;
+    return (*driver->keyboard_leds)();
 }
 
 /* keyboard report operations */
@@ -123,31 +124,32 @@ uint8_t host_get_first_key(void)
 
 void host_send_keyboard_report(void)
 {
-    usb_keyboard_send_report(keyboard_report);
+    if (!driver) return;
+    (*driver->send_keyboard)(keyboard_report);
 }
 
-#if defined(MOUSEKEY_ENABLE) || defined(PS2_MOUSE_ENABLE)
 void host_mouse_send(report_mouse_t *report)
 {
-    usb_mouse_send(report->x, report->y, report->v, report->h, report->buttons);
+    if (!driver) return;
+    (*driver->send_mouse)(report);
 }
-#endif
 
-#ifdef EXTRAKEY_ENABLE
 void host_system_send(uint16_t data)
 {
-    usb_extra_system_send(data);
+    if (!driver) return;
+    (*driver->send_consumer)(data);
 }
 
 void host_consumer_send(uint16_t data)
 {
+    // TODO: this is needed?
     static uint16_t last_data = 0;
     if (data == last_data) return;
     last_data = data;
 
-    usb_extra_consumer_send(data);
+    if (!driver) return;
+    (*driver->send_consumer)(data);
 }
-#endif
 
 
 static inline void add_key_byte(uint8_t code)

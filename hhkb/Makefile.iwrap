@@ -1,10 +1,10 @@
 #
-# Makefile for V-USB
+# Makefile for iWRAP
 #
 
 
 # Target file name (without extension).
-TARGET = hhkb_test
+TARGET = hhkb_iwrap
 
 # Directory common source filess exist
 COMMON_DIR = ..
@@ -13,12 +13,12 @@ COMMON_DIR = ..
 TARGET_DIR = .
 
 # keyboard dependent files
-TARGET_SRC =	main_test.c \
-		uart.c \
-		suart.S
+TARGET_SRC =	main.c \
+		keymap.c \
+		matrix.c \
+		led.c
 
-
-CONFIG_H = config_vusb.h
+CONFIG_H = config_iwrap.h
 
 
 # V-USB debug level: To use ps2_usart.c level must be 0
@@ -28,7 +28,9 @@ OPT_DEFS = -DDEBUG_LEVEL=0
 
 # MCU name, you MUST set this to match the board you are using
 # type "make clean" after changing this, so all files will be rebuilt
-MCU = atmega168
+MCU = atmega168p
+# avrdude doesn't know atmega168p
+AVRDUDE_MCU = atmega168
 
 
 # Processor frequency.
@@ -43,8 +45,8 @@ F_CPU = 12000000
 #   comment out to disable the options.
 #
 MOUSEKEY_ENABLE = yes	# Mouse keys
-USB_EXTRA_ENABLE = yes	# Audio control and System control
-#USB_NKRO_ENABLE = yes	# USB Nkey Rollover
+EXTRAKEY_ENABLE = yes	# Audio control and System control
+#NKRO_ENABLE = yes	# USB Nkey Rollover
 
 
 
@@ -59,7 +61,7 @@ AVRDUDE_WRITE_FLASH = -U flash:w:$(TARGET).hex
 # Uncomment the following if you want avrdude's erase cycle counter.
 # Note that this counter needs to be initialized first using -Yn,
 # see avrdude manual.
-AVRDUDE_ERASE_COUNTER = -y
+#AVRDUDE_ERASE_COUNTER = -y
 
 # Uncomment the following if you do /not/ wish a verification to be
 # performed after programming the device.
@@ -70,8 +72,8 @@ AVRDUDE_ERASE_COUNTER = -y
 # to submit bug reports.
 #AVRDUDE_VERBOSE = -v -v
 
-#AVRDUDE_FLAGS = -p $(MCU) -P $(AVRDUDE_PORT) -c $(AVRDUDE_PROGRAMMER)
-AVRDUDE_FLAGS = -p $(MCU) -c $(AVRDUDE_PROGRAMMER)
+#AVRDUDE_FLAGS = -p $(AVRDUDE_MCU) -P $(AVRDUDE_PORT) -c $(AVRDUDE_PROGRAMMER)
+AVRDUDE_FLAGS = -p $(AVRDUDE_MCU) -c $(AVRDUDE_PROGRAMMER)
 AVRDUDE_FLAGS += $(AVRDUDE_NO_VERIFY)
 AVRDUDE_FLAGS += $(AVRDUDE_VERBOSE)
 AVRDUDE_FLAGS += $(AVRDUDE_ERASE_COUNTER)
@@ -80,5 +82,5 @@ PROGRAM_CMD = $(AVRDUDE) $(AVRDUDE_FLAGS) $(AVRDUDE_WRITE_FLASH) $(AVRDUDE_WRITE
 
 
 
-include $(COMMON_DIR)/Makefile.vusb
+include $(COMMON_DIR)/Makefile.iwrap
 include $(COMMON_DIR)/Makefile.common

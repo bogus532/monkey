@@ -161,8 +161,9 @@ uint8_t matrix_scan(void)
             uint8_t last = TIMER_RAW;
 
             KEY_ENABLE();
-            // Wait for KEY_STATE outputs its value. 1us will be enough.
-            _delay_us(1);
+            // Wait for KEY_STATE outputs its value.
+            // 1us was ok on one HHKB, but not worked on another.
+            _delay_us(5);
             if (KEY_STATE()) {
                 matrix[row] &= ~(1<<col);
             } else {

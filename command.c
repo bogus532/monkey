@@ -30,7 +30,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifdef HOST_PJRC
 #   include "jump_bootloader.h"
 #   include "usb_keyboard.h"
-#   ifdef USB_EXTRA_ENABLE
+#   ifdef EXTRAKEY_ENABLE
 #       include "usb_extra.h"
 #   endif
 #endif
@@ -134,19 +134,19 @@ uint8_t command_proc(void)
 #   endif
 #endif
             break;
-#ifdef USB_NKRO_ENABLE
+#ifdef NKRO_ENABLE
         case KB_N:
             // send empty report before change
             host_clear_keyboard_report();
             host_send_keyboard_report();
             keyboard_nkro = !keyboard_nkro;
             if (keyboard_nkro)
-                print("USB_NKRO: enabled\n");
+                print("NKRO: enabled\n");
             else
-                print("USB_NKRO: disabled\n");
+                print("NKRO: disabled\n");
             break;
 #endif
-#ifdef USB_EXTRA_ENABLE
+#ifdef EXTRAKEY_ENABLE
         case KB_ESC:
             host_clear_keyboard_report();
             host_send_keyboard_report();
@@ -204,8 +204,8 @@ static void help(void)
     print("v: print version\n");
     print("t: print timer count\n");
     print("s: print status\n");
-#ifdef USB_NKRO_ENABLE
-    print("n: toggle USB_NKRO\n");
+#ifdef NKRO_ENABLE
+    print("n: toggle NKRO\n");
 #endif
     print("Backspace: clear matrix\n");
     print("ESC: power down/wake up\n");

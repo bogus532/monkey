@@ -15,9 +15,12 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef HOST_VUSB_H
-#define HOST_VUSB_H
+#ifndef PJRC_H
+#define PJRC_H
 
-void host_vusb_keyboard_send(void);
+#include "host_driver.h"
+
+
+host_driver_t *pjrc_driver(void);
 
 #endif
