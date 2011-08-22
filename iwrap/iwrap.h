@@ -34,4 +34,8 @@ void iwrap_buf_send(void);
 void iwrap_buf_add(uint8_t c);
 void iwrap_buf_del(void);
 
+void iwrap_call(void);
+void iwrap_sniff(void);
+void iwrap_subrate(void);
+
 #endif

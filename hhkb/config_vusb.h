@@ -18,10 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#include "usb_keycodes.h"
-#include "host.h"
-
-
 #define VENDOR_ID       0xFEED
 #define PRODUCT_ID      0xC0FE
 // TODO: share these strings with usbconfig.h

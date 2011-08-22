@@ -13,7 +13,7 @@ COMMON_DIR = ..
 TARGET_DIR = .
 
 # keyboard dependent files
-TARGET_SRC =	main_pjrc.c \
+TARGET_SRC =	main.c \
 		keymap.c \
   	        matrix.c \
 		led.c

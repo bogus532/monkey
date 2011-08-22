@@ -16,14 +16,14 @@
 #include "oddebug.h"
 #include "vusb.h"
 #include "keyboard.h"
+#include "host.h"
 #include "timer.h"
 #include "uart.h"
-#include "suart.h"
 #include "debug.h"
 
-#ifdef USB_COUNT_SOF
-bool suspended = false;
-#endif
+
+#define UART_BAUD_RATE 115200
+
 
 /* This is from main.c of USBaspLoader */
 static void initForUsbConnectivity(void)
@@ -41,40 +41,27 @@ static void initForUsbConnectivity(void)
     sei();
 }
 
-#define CPU_PRESCALE(n)    (CLKPR = 0x80, CLKPR = (n))
 int main(void)
 {
-    CPU_PRESCALE(0);
-    uart_init(115200);
+#ifdef USB_COUNT_SOF
+    bool suspended = false;
+    uint16_t last_timer = timer_read();
+#endif
+
+    CLKPR = 0x80, CLKPR = 0;
+    uart_init(UART_BAUD_RATE);
+
     debug_enable = true;
     print_enable = true;
+
     debug("keyboard_init()\n");
     keyboard_init();
+    host_set_driver(vusb_driver());
 
     debug("initForUsbConnectivity()\n");
     initForUsbConnectivity();
 
-
-
-    print("suart init\n");
-    // suart init
-    // PC4: Tx Output IDLE(Hi)
-    PORTC |= (1<<4);
-    DDRC  |= (1<<4);
-    // PC5: Rx Input(pull-up)
-    PORTC |= (1<<5);
-    DDRC  &= ~(1<<5);
-    // suart receive interrut(PC5/PCINT13)
-    PCMSK1 = 0b00100000;
-    PCICR  = 0b00000010;
-
-
-#ifdef USB_COUNT_SOF
-    //bool suspended = false;
-    uint16_t last_timer = timer_read();
-#endif
     debug("main loop\n");
-    host_set_driver(vusb_driver());
     while (1) {
 #ifdef USB_COUNT_SOF
         if (usbSofCount != 0) {
@@ -106,22 +93,5 @@ int main(void)
         keyboard_proc();
         if (!suspended)
             vusb_transfer_keyboard();
-
-        // Send to Bluetoot module WT12
-        if (suspended) {
-            if (uart_available()) {
-                uint8_t c;
-                c = uart_getchar();
-                xmit(c);
-            }
-        }
     }
-}
-
-ISR(PCINT1_vect, ISR_NOBLOCK)
-{
-    if ((PINC&(1<<5)))
-        return;
-    if (suspended)
-        uart_putchar(recv());
 }

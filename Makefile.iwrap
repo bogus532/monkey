@@ -1,0 +1,12 @@
+OPT_DEFS += -DHOST_IWRAP
+
+SRC =	iwrap.c \
+	suart.S \
+	sendchar_uart.c \
+	uart.c
+
+SRC +=	$(TARGET_SRC)
+
+
+# C source file search path
+VPATH = $(TARGET_DIR):$(COMMON_DIR):$(COMMON_DIR)/iwrap

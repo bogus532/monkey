@@ -15,21 +15,38 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <stdint.h>
+#include <avr/interrupt.h>
 #include <avr/io.h>
+//#include <avr/wdt.h>
+#include "wd.h"
+#include <avr/sleep.h>
 #include <util/delay.h>
 #include "keyboard.h"
+#include "matrix.h"
 #include "host.h"
 #include "iwrap.h"
 #include "uart.h"
 #include "suart.h"
+#include "timer.h"
 #include "debug.h"
+
+
+static void sleep(void);
+
 
 int main(void)
 {
+    static bool sleeping = false;
+    static bool insomniac = true;   // TODO: should be false for power saving
+    static uint16_t last_timer = 0;
+
     // Clock Prescaler: div1
     CLKPR = 0x80, CLKPR = 0;
+    MCUSR = 0;
+    WD_SET(WD_OFF);
 
     print_enable = true;
+    debug_enable = false;
 
     print("uart_init()\n");
     uart_init(115200);
@@ -53,11 +70,21 @@ int main(void)
 #ifdef MUX_MODE
     print("iwrap_init()\n");
     iwrap_init();
-    iwrap_call();
+    //iwrap_call();
 #endif
+
+    last_timer = timer_read();
     while (true) {
         keyboard_proc();
+        if (matrix_is_modified()) {
+            sleeping = false;
+        } else if (!sleeping && timer_elapsed(last_timer) > 4000) {
+            sleeping = true;
+            //uart_putchar('S');
+        }
+
         // Send to Bluetoot module WT12
+        static bool breaked = false;
         if (uart_available()) {
             uint8_t c;
             c = uart_getchar();
@@ -66,24 +93,77 @@ int main(void)
             switch (c) {
                 case 0x00:
                     // break
-                    print("break\n");
-                    print("iwrap_init()\n");
-                    iwrap_init();
-                    iwrap_call();
+                    print("break-");
+                    breaked = true;
+                    _delay_ms(1000);
+                    sleeping = false;
                     break;
                 case '\r':
+                    uart_putchar('\n');
                     iwrap_buf_send();
                     break;
                 case '\b':
                     iwrap_buf_del();
                     break;
                 default:
-                    iwrap_buf_add(c);
+                    if (breaked) {
+                        print("\n");
+                        switch (c) {
+                            case 'r':
+                                print("reset\n");
+                                WD_AVR_RESET();
+                                break;
+                            case 'i':
+                                insomniac = !insomniac;
+                                if (insomniac)
+                                    print("insomniac\n");
+                                else
+                                    print("not insomniac\n");
+                                break;
+                            case 'c':
+                                print("iwrap_call()\n");
+                                iwrap_call();
+                                break;
+                        }
+                        breaked = false;
+                    } else {
+                        iwrap_buf_add(c);
+                    }
                     break;
             }
 #else
             xmit(c);
 #endif
         }
+
+        if (!insomniac && sleeping) {
+            _delay_ms(1);
+            sleep();
+            last_timer = timer_read();
+        }
     }
+}
+
+static void sleep(void)
+{
+    WD_SET(WD_IRQ, WDTO_15MS);
+    //wdt_enable(WDTO_500MS);
+
+    cli();
+    set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+    sleep_enable();
+    sleep_bod_disable();
+    sei();
+    sleep_cpu();
+    sleep_disable();
+
+    WD_SET(WD_OFF);
+    //wdt_disable();
+
+    //uart_putchar('W');
+}
+
+ISR(WDT_vect)
+{
+    //uart_putchar('w');
 }

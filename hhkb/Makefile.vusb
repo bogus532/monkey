@@ -13,11 +13,10 @@ COMMON_DIR = ..
 TARGET_DIR = .
 
 # keyboard dependent files
-TARGET_SRC =	main_vusb.c \
+TARGET_SRC =	main.c \
 		keymap.c \
 		matrix.c \
-		led.c \
-		suart.S
+		led.c
 
 CONFIG_H = config_vusb.h
 
