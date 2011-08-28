@@ -33,7 +33,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 static uint8_t last_leds = 0;
-
+uint8_t last_row, last_column;
 
 void keyboard_init(void)
 {
@@ -73,6 +73,8 @@ void keyboard_proc(void)
     for (int row = 0; row < matrix_rows(); row++) {
         for (int col = 0; col < matrix_cols(); col++) {
             if (!matrix_is_on(row, col)) continue;
+						last_row = row;
+						last_column = col;
 
             uint8_t code = layer_get_keycode(row, col);
             if (code == KB_NO) {

@@ -10,12 +10,14 @@
 #include <stdint.h>
 #include <avr/wdt.h>
 #include <avr/interrupt.h>
+#include <avr/eeprom.h>
 #include <util/delay.h>
 #include "usbdrv.h"
 #include "oddebug.h"
 #include "host_vusb.h"
 #include "keyboard.h"
-
+#include "debug.h"
+#include "monkey.h"
 
 #if 0
 #define DEBUGP_INIT() do { DDRC = 0xFF; } while (0)
@@ -25,6 +27,8 @@
 #define DEBUGP(x)
 #endif
 
+monkeyconf_t monkey_config;
+bool save_monkey_config;
 
 int main(void)
 {
@@ -44,7 +48,8 @@ int main(void)
     usbDeviceConnect();
 
     keyboard_init();
-
+		save_monkey_config = false;
+				
     sei();
     while (1) {
         DEBUGP(0x1);
@@ -54,5 +59,14 @@ int main(void)
         keyboard_proc();
         DEBUGP(0x3);
         host_vusb_keyboard_send();
+				if (save_monkey_config) {
+					//debug("save conf begin\n");
+					wdt_disable();
+					eeprom_write_block(&monkey_config, 0, sizeof(monkeyconf_t));
+					wdt_reset();
+					wdt_enable(WDTO_1S);
+					//debug("save conf end\n");
+					save_monkey_config = false;
+				}
     }
 }

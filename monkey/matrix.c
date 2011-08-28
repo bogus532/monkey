@@ -21,12 +21,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdint.h>
 #include <stdbool.h>
 #include <avr/io.h>
-#include <avr/interrupt.h>
+#include <avr/eeprom.h>
 #include <util/delay.h>
 #include "print.h"
 #include "util.h"
 #include "matrix.h"
-
+#include "monkey.h"
 
 #if (MATRIX_COLS > 16)
 #   error "MATRIX_COLS must not exceed 16"
@@ -38,74 +38,43 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 // matrix state buffer(1:on, 0:off)
 #if (MATRIX_COLS <= 8)
-static uint8_t *matrix;
-static uint8_t *matrix_prev;
-static uint8_t _matrix0[MATRIX_ROWS];
-static uint8_t _matrix1[MATRIX_ROWS];
+typedef uint8_t Columnstate_t;
+#define COLUMNSTATE_EMPTY     0xff
 #else
-static uint16_t *matrix;
-static uint16_t *matrix_prev;
-static uint16_t _matrix0[MATRIX_ROWS];
-static uint16_t _matrix1[MATRIX_ROWS];
+typedef uint16_t Columnstate_t;
+#define COLUMNSTATE_EMPTY     0xffff
 #endif
-
-// HHKB has no ghost and no bounce.
-#ifdef MATRIX_HAS_GHOST
-static bool matrix_has_ghost_in_row(uint8_t row);
-#endif
-
-
-// Matrix I/O ports
-//
-// row:     HC4051[A,B,C]  selects scan row0-7
-// col:     LS145[A,B,C,D] selects scan col0-7 and enable(D)
-// key:     on: 0/off: 1
-// prev:    unknown: output previous key state(negated)?
 
 #ifdef HOST_PJRC
 // Ports for Teensy
-// row:     PB0-2
-// col:     PB3-5,6
-// key:     PE6(pull-uped)
-// prev:    PE7
-#define KEY_INIT()              do {    \
-    DDRB |= 0x7F;                       \
-    DDRE |=  (1<<7);                    \
-    DDRE &= ~(1<<6);                    \
-    PORTE |= (1<<6);                    \
-} while (0)
-#define KEY_SELECT(ROW, COL)    (PORTB = (PORTB & 0xC0) |       \
-                                         (((COL) & 0x07)<<3) |    \
-                                         ((ROW) & 0x07))
-#define KEY_ENABLE()            (PORTB &= ~(1<<6))
-#define KEY_UNABLE()            (PORTB |=  (1<<6))
-#define KEY_STATE()             (PINE & (1<<6))
-#define KEY_PREV_ON()           (PORTE |=  (1<<7))
-#define KEY_PREV_OFF()          (PORTE &= ~(1<<7))
-
 #else
 // Ports for V-USB
-// key:     PB0(pull-uped)
-// prev:    PB1
-// row:     PB2-4
-// col:     PC0-2,3
-#define KEY_INIT()              do {    \
-    DDRB |= 0x1E;                       \
-    DDRB &= ~(1<<0);                    \
-    PORTB |= (1<<0);                    \
-    DDRC |= 0x0F;                       \
-} while (0)
-#define KEY_SELECT(ROW, COL)    do {    \
-    PORTB = (PORTB & 0xE3) | ((ROW) & 0x07)<<2; \
-    PORTC = (PORTC & 0xF8) | ((COL) & 0x07);    \
-} while (0)
-#define KEY_ENABLE()            (PORTC &= ~(1<<3))
-#define KEY_UNABLE()            (PORTC |=  (1<<3))
-#define KEY_STATE()             (PINB & (1<<0))
-#define KEY_PREV_ON()           (PORTB |=  (1<<1))
-#define KEY_PREV_OFF()          (PORTB &= ~(1<<1))
+#define ROWS_PORT1  PORTA
+#define ROWS_DDR1   DDRA
+
+#define ROWS_PORT2  PORTC
+#define ROWS_DDR2   DDRC
+
+#define ROWS_PORT3  PORTD
+#define ROWS_DDR3   DDRD
+#define ROWS_ALL3   (_BV(PD6)|_BV(PD7))
+
+#define COLS_PORT   PORTB
+#define COLS_DDR    DDRB
+#define COLS_PIN    PINB
 #endif
 
+static Columnstate_t *matrix;
+static Columnstate_t *matrix_prev;
+static Columnstate_t _matrix0[MATRIX_ROWS];
+static Columnstate_t _matrix1[MATRIX_ROWS];
+
+#ifdef MATRIX_HAS_GHOST
+static bool matrix_has_ghost_in_row(uint8_t row);
+#endif
+static Columnstate_t read_columns(void);
+static void unselect_rows(void);
+static void select_row(uint8_t row);
 
 inline
 uint8_t matrix_rows(void)
@@ -121,53 +90,40 @@ uint8_t matrix_cols(void)
 
 void matrix_init(void)
 {
-    KEY_INIT();
+		eeprom_read_block(&monkey_config, 0, sizeof(monkeyconf_t));
+		if(monkey_config.row <=0 || monkey_config.row > MATRIX_ROWS)
+			monkey_config.row = MATRIX_ROWS;
+		if(monkey_config.column <=0 || monkey_config.column > MATRIX_COLS)
+			monkey_config.column = MATRIX_COLS;
+
+    // initialize row and col
+    unselect_rows();
+    // Input with pull-up(DDR:0, PORT:1)
+    COLS_DDR = 0x00;
+    COLS_PORT = 0xFF;
 
     // initialize matrix state: all keys off
-    for (uint8_t i=0; i < MATRIX_ROWS; i++) _matrix0[i] = 0x00;
-    for (uint8_t i=0; i < MATRIX_ROWS; i++) _matrix1[i] = 0x00;
+    for (uint8_t i=0; i < MATRIX_ROWS; i++) _matrix0[i] = COLUMNSTATE_EMPTY;
+    for (uint8_t i=0; i < MATRIX_ROWS; i++) _matrix1[i] = COLUMNSTATE_EMPTY;
     matrix = _matrix0;
     matrix_prev = _matrix1;
 }
 
 uint8_t matrix_scan(void)
 {
-    uint8_t *tmp;
+    Columnstate_t *tmp;
 
     tmp = matrix_prev;
     matrix_prev = matrix;
     matrix = tmp;
 
-    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-        for (uint8_t col = 0; col < MATRIX_COLS; col++) {
-            KEY_SELECT(row, col);
-            _delay_us(40);  // from logic analyzer chart
-            if (matrix_prev[row] & (1<<col)) {
-                KEY_PREV_ON();
-            }
-            _delay_us(7);  // from logic analyzer chart
-
-#if HOST_VUSB
-            // to avoid V-USB interrupt during read key state
-            uint8_t sreg = SREG;
-            cli();
-#endif
-            KEY_ENABLE();
-            _delay_us(10);  // from logic analyzer chart
-            if (KEY_STATE()) {
-                matrix[row] &= ~(1<<col);
-            } else {
-                matrix[row] |= (1<<col);
-            }
-#if HOST_VUSB
-            SREG = sreg;
-#endif
-
-            KEY_PREV_OFF();
-            KEY_UNABLE();
-            _delay_us(150);  // from logic analyzer chart
-        }
+    for (uint8_t i = 0; i < MATRIX_ROWS; i++) {
+        unselect_rows();
+        select_row(i);
+        _delay_us(30);  // without this wait read unstable value.
+        matrix[i] = ~read_columns();
     }
+    unselect_rows();
     return 1;
 }
 
@@ -183,13 +139,21 @@ bool matrix_is_modified(void)
 inline
 bool matrix_has_ghost(void)
 {
-#ifdef MATRIX_HAS_GHOST
-    for (uint8_t i = 0; i < MATRIX_ROWS; i++) {
-        if (matrix_has_ghost_in_row(i))
-            return true;
+	for(uint8_t r=0; r < MATRIX_ROWS-1; ++r)
+  {
+    /* no ghost keys present for this row if no more than a single column got
+     * activated */
+    Columnstate_t temp=matrix[r];
+    if(!(temp&(Columnstate_t)(temp-1))) continue;
+
+    /* search for equal column states, report ghost key condition if found */
+    for(uint8_t s=r+1; s < MATRIX_ROWS; ++s)
+    {
+      if(matrix[r] == matrix[s]) return true;
     }
-#endif
-    return false;
+  }
+
+  return false;
 }
 
 inline
@@ -199,22 +163,14 @@ bool matrix_is_on(uint8_t row, uint8_t col)
 }
 
 inline
-#if (MATRIX_COLS <= 8)
-uint8_t matrix_get_row(uint8_t row)
-#else
-uint16_t matrix_get_row(uint8_t row)
-#endif
+Columnstate_t matrix_get_row(uint8_t row)
 {
     return matrix[row];
 }
 
 void matrix_print(void)
 {
-#if (MATRIX_COLS <= 8)
     print("\nr/c 01234567\n");
-#else
-    print("\nr/c 0123456789ABCDEF\n");
-#endif
     for (uint8_t row = 0; row < matrix_rows(); row++) {
         phex(row); print(": ");
 #if (MATRIX_COLS <= 8)
@@ -244,19 +200,35 @@ uint8_t matrix_key_count(void)
     return count;
 }
 
-#ifdef MATRIX_HAS_GHOST
 inline
-static bool matrix_has_ghost_in_row(uint8_t row)
+static uint8_t read_columns(void)
 {
-    // no ghost exists in case less than 2 keys on
-    if (((matrix[row] - 1) & matrix[row]) == 0)
-        return false;
-
-    // ghost exists in case same state as other row
-    for (uint8_t i=0; i < MATRIX_ROWS; i++) {
-        if (i != row && (matrix[i] & matrix[row]) == matrix[row])
-            return true;
-    }
-    return false;
+    return COLS_PIN;
 }
-#endif
+
+inline
+static void unselect_rows(void)
+{
+	ROWS_DDR1=0x00;
+	ROWS_PORT1=0xff;
+  ROWS_DDR2=0x00;
+  ROWS_PORT2=0xff;
+	ROWS_DDR3&=~ROWS_ALL3;
+  ROWS_PORT3|=ROWS_ALL3;
+}
+
+inline
+static void select_row(uint8_t row)
+{
+	if(row<8) {
+		ROWS_DDR1=_BV(row);
+		ROWS_PORT1=~_BV(row);
+	} else if(row<16) {
+		ROWS_DDR2=_BV(row&0x07);
+		ROWS_PORT2=~_BV(row&0x07);
+	} else {
+		uint8_t temp=_BV(row&0x03);
+		ROWS_DDR3=(ROWS_DDR3&~ROWS_ALL3)|temp;
+		ROWS_PORT3=(ROWS_PORT3|ROWS_PORT3)&~temp;
+	}
+}

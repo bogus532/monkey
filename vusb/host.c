@@ -24,7 +24,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "host.h"
 #include "host_vusb.h"
 #include "debug.h"
-
+#include "monkey.h"
+#include "keymap.h"
 
 static report_keyboard_t report0;
 static report_keyboard_t report1;
@@ -207,10 +208,79 @@ static struct {
     }               kind;
 } last_req;
 
+static usbMsgLen_t handle_request(const usbRequest_t *rq)
+{
+  static uint8_t buffer[8];
+
+	if(KURQ_AIKON_SET_KEY_MIN  <= rq->bRequest &&
+		 rq->bRequest <= KURQ_AIKON_SET_KEY_MAX)
+	{
+		uint8_t layer = rq->wIndex.bytes[0];
+		uint8_t key_index = rq->bRequest;
+		if ( layer >= 0 && layer < layer_max)
+			monkey_config.matrix[layer][key_index] = rq->wValue.bytes[0];
+		return 0;
+	}
+	
+  usbMsgPtr=(void *)buffer;
+  switch(rq->bRequest)
+  {
+	case  KURQ_AIKON_READ_MATRIX_NORMAL:
+		usbMsgPtr = monkey_config.matrix[layer_normal];
+		return layer_aikon_keys;
+	case  KURQ_AIKON_READ_MATRIX_FN:
+		usbMsgPtr = monkey_config.matrix[layer_fn1];
+		return layer_aikon_keys;
+	case  KURQ_AIKON_READ_MATRIX_NUMLOCK:
+		usbMsgPtr = monkey_config.matrix[layer_numlock];
+		return layer_aikon_keys;
+	case KURQ_AIKON_WRITE_TO_EEPROM:
+		save_monkey_config = true;
+		return 0;
+	case KURQ_AIKON_GET_LAST_KEY_INFO:
+	{
+		buffer[0] = last_row;
+		buffer[1] = last_column;
+		buffer[2] = keymap_get_keycode(layer_normal, last_row, last_column);
+		buffer[3] = keymap_get_keycode(layer_fn1, last_row, last_column);
+		buffer[4] = keymap_get_keycode(layer_numlock, last_row, last_column);
+		return 5;
+	}
+	case KURQ_AIKON_GET_ROWCOL:
+		buffer[0] = monkey_config.row-1;
+		buffer[1] = monkey_config.column-1;
+		return 2;
+	case KURQ_AIKON_SET_ROW:
+		monkey_config.row = rq->wValue.bytes[0]+1;
+		return 0;
+	case KURQ_AIKON_SET_COLUMN:
+		monkey_config.column = rq->wValue.bytes[0]+1;
+		return 0;
+	case KURQ_AIKON_GET_FLAGS:
+		buffer[0] = monkey_config.flags;
+		return 1;
+	case KURQ_AIKON_SET_FLAGS:
+		monkey_config.flags = rq->wValue.bytes[0];
+		return 0;
+	case KURQ_RESET:
+    /* loop "endlessly" for ~0.5s */
+    WDTCR=
+#ifdef WDTOE
+      _BV(WDTOE)|
+#else /* !WDTOE */
+      _BV(WDCE)|
+#endif /* WDTOE */
+      _BV(WDE)|_BV(WDP2)|_BV(WDP0);
+    while(1);
+	default:
+    return 0;
+  }
+}
+
 usbMsgLen_t usbFunctionSetup(uchar data[8])
 {
-usbRequest_t    *rq = (void *)data;
-
+	  usbRequest_t *rq = (void *)data;
+		
     if((rq->bmRequestType & USBRQ_TYPE_MASK) == USBRQ_TYPE_CLASS){    /* class request type */
         if(rq->bRequest == USBRQ_HID_GET_REPORT){
             debug(" GET_REPORT");
@@ -235,9 +305,9 @@ usbRequest_t    *rq = (void *)data;
             return USB_NO_MSG; // to get data in usbFunctionWrite
         }
         debug("\n");
-    }else{
-        debug("VENDOR\n");
-        /* no vendor specific requests implemented */
+    }else	if((rq->bmRequestType&USBRQ_TYPE_MASK) == USBRQ_TYPE_VENDOR) {
+			  //debug("VENDOR\n");
+			  return handle_request(rq);
     }
     return 0;   /* default for not implemented requests: return no data back to host */
 }
