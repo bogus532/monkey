@@ -28,9 +28,14 @@ volatile uint16_t timer_count = 0;
 // inactivity timeout.
 void timer_init(void)
 {
-    TCCR0A = 0x00;
-    TCCR0B = 0x05;
-    TIMSK0 = (1<<TOIE0);
+#if defined (__AVR_ATmega32__)	
+  TCCR0=_BV(CS02)|_BV(CS00);
+	TIMSK|=_BV(TOIE0);
+#else
+	TCCR0A = 0x00;
+	TCCR0B = 0x05;
+	TIMSK0 = (1<<TOIE0);
+#endif
 }
 
 inline
