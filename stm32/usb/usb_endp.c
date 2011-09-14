@@ -23,7 +23,6 @@
 #include "platform_config.h"
 #include "usb_lib.h"
 #include "usb_istr.h"
-#include "platform.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -48,44 +47,9 @@ void EP1_OUT_Callback(void)
   /* Read received data (2 bytes) */  
   USB_SIL_Read(EP1_OUT, Receive_Buffer);
   
-  if (Receive_Buffer[1] == 0)
-  {
-    Led_State = Bit_RESET;
-  }
-  else 
-  {
-    Led_State = Bit_SET;
-  }
- 
- 
-  switch (Receive_Buffer[0])
-  {
-    case 1: /* Led 1 */
-     /*
-     if (Led_State != Bit_RESET)
-     {
-       STM_EVAL_LEDOn(LED1);
-     }
-     else
-     {
-       STM_EVAL_LEDOff(LED1);
-     }
-      */
-     break;
-    case 2: /* Led 2 */
-      break;
-    case 3: /* Led 3 */
-      break;
-    case 4: /* Led 4 */
-      break;
-  default:
-    break;
-  }
- 
 #ifndef STM32F10X_CL   
   SetEPRxStatus(ENDP1, EP_RX_VALID);
 #endif /* STM32F10X_CL */
- 
 }
 
 /*******************************************************************************

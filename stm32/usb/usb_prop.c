@@ -295,16 +295,24 @@ RESULT CustomHID_Data_Setup(uint8_t RequestNo)
 *******************************************************************************/
 RESULT CustomHID_NoData_Setup(uint8_t RequestNo)
 {
-  if ((Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT))
-      && (RequestNo == SET_PROTOCOL))
+  if (Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT))
   {
-    return CustomHID_SetProtocol();
+    switch (RequestNo)
+    {
+      case GET_PROTOCOL:
+      case SET_PROTOCOL:
+        return CustomHID_SetProtocol();
+      case GET_IDLE:
+      case SET_IDLE:
+      case GET_REPORT:
+      case SET_REPORT:
+        break;
+    }
   }
-
-  else
+  else if (Type_Recipient == (VENDOR_REQUEST | INTERFACE_RECIPIENT))
   {
-    return USB_UNSUPPORT;
   }
+  return USB_UNSUPPORT;
 }
 
 /*******************************************************************************
@@ -429,6 +437,14 @@ uint8_t *CustomHID_GetProtocolValue(uint16_t Length)
   {
     return (uint8_t *)(&ProtocolValue);
   }
+}
+
+uint8_t *CustomHID_GetReport(uint16_t Length)
+{
+}
+
+uint8_t *CustomHID_SetReport(uint16_t Length)
+{
 }
 
 /******************* (C) COPYRIGHT 2011 STMicroelectronics *****END OF FILE****/
