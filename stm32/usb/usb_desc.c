@@ -464,30 +464,97 @@ const uint8_t CustomHID_StringLangID[CUSTOMHID_SIZ_STRING_LANGID] =
   }
   ; /* LangID = 0x0409: U.S. English */
 
-const uint8_t CustomHID_StringVendor[CUSTOMHID_SIZ_STRING_VENDOR] =
+ONE_DESCRIPTOR Device_Descriptor =
   {
-    CUSTOMHID_SIZ_STRING_VENDOR, /* Size of Vendor string */
-    USB_STRING_DESCRIPTOR_TYPE,  /* bDescriptorType*/
-    /* Manufacturer: "STMicroelectronics" */
-    'S', 0, 'T', 0, 'M', 0, 'i', 0, 'c', 0, 'r', 0, 'o', 0, 'e', 0,
-    'l', 0, 'e', 0, 'c', 0, 't', 0, 'r', 0, 'o', 0, 'n', 0, 'i', 0,
-    'c', 0, 's', 0
+    (uint8_t*)device_descriptor,
+    sizeof(device_descriptor)
   };
 
-const uint8_t CustomHID_StringProduct[CUSTOMHID_SIZ_STRING_PRODUCT] =
+ONE_DESCRIPTOR Config_Descriptor =
   {
-    CUSTOMHID_SIZ_STRING_PRODUCT,          /* bLength */
-    USB_STRING_DESCRIPTOR_TYPE,        /* bDescriptorType */
-    'S', 0, 'T', 0, 'M', 0, '3', 0, '2', 0, ' ', 0, 'C', 0,
-    'u', 0, 's', 0, 't', 0, 'm', 0, ' ', 0, 'H', 0, 'I', 0,
-    'D', 0
+    (uint8_t*)config_descriptor,
+    sizeof(config_descriptor)
   };
-uint8_t CustomHID_StringSerial[CUSTOMHID_SIZ_STRING_SERIAL] =
+
+ONE_DESCRIPTOR CustomHID_Report_Descriptor =
   {
-    CUSTOMHID_SIZ_STRING_SERIAL,           /* bLength */
-    USB_STRING_DESCRIPTOR_TYPE,        /* bDescriptorType */
-    'S', 0, 'T', 0, 'M', 0,'3', 0,'2', 0, '1', 0, '0', 0
+    (uint8_t *)CustomHID_ReportDescriptor,
+    CUSTOMHID_SIZ_REPORT_DESC
   };
+
+ONE_DESCRIPTOR CustomHID_Hid_Descriptor =
+  {
+    (uint8_t*)CustomHID_ConfigDescriptor + CUSTOMHID_OFF_HID_DESC,
+    CUSTOMHID_SIZ_HID_DESC
+  };
+
+/*******************************************************************************
+* Function Name  : CustomHID_GetDeviceDescriptor.
+* Description    : Gets the device descriptor.
+* Input          : Length
+* Output         : None.
+* Return         : The address of the device descriptor.
+*******************************************************************************/
+uint8_t *CustomHID_GetDeviceDescriptor(uint16_t Length)
+{
+  return Standard_GetDescriptorData(Length, &Device_Descriptor);
+}
+
+/*******************************************************************************
+* Function Name  : CustomHID_GetConfigDescriptor.
+* Description    : Gets the configuration descriptor.
+* Input          : Length
+* Output         : None.
+* Return         : The address of the configuration descriptor.
+*******************************************************************************/
+uint8_t *CustomHID_GetConfigDescriptor(uint16_t Length)
+{
+  return Standard_GetDescriptorData(Length, &Config_Descriptor);
+}
+
+/*******************************************************************************
+* Function Name  : CustomHID_GetStringDescriptor
+* Description    : Gets the string descriptors according to the needed index
+* Input          : Length
+* Output         : None.
+* Return         : The address of the string descriptors.
+*******************************************************************************/
+uint8_t *CustomHID_GetStringDescriptor(uint16_t Length)
+{
+  uint8_t wValue0 = pInformation->USBwValue0;
+  if (wValue0 > 4)
+  {
+    return NULL;
+  }
+  else 
+  {
+    return Standard_GetDescriptorData(Length, &String_Descriptor[wValue0]);
+  }
+}
+
+/*******************************************************************************
+* Function Name  : CustomHID_GetReportDescriptor.
+* Description    : Gets the HID report descriptor.
+* Input          : Length
+* Output         : None.
+* Return         : The address of the configuration descriptor.
+*******************************************************************************/
+uint8_t *CustomHID_GetReportDescriptor(uint16_t Length)
+{
+  return Standard_GetDescriptorData(Length, &CustomHID_Report_Descriptor);
+}
+
+/*******************************************************************************
+* Function Name  : CustomHID_GetHIDDescriptor.
+* Description    : Gets the HID descriptor.
+* Input          : Length
+* Output         : None.
+* Return         : The address of the configuration descriptor.
+*******************************************************************************/
+uint8_t *CustomHID_GetHIDDescriptor(uint16_t Length)
+{
+  return Standard_GetDescriptorData(Length, &CustomHID_Hid_Descriptor);
+}
 
 /******************* (C) COPYRIGHT 2011 STMicroelectronics *****END OF FILE****/
 

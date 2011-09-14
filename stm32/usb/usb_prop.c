@@ -72,38 +72,6 @@ USER_STANDARD_REQUESTS User_Standard_Requests =
     CustomHID_SetDeviceAddress
   };
 
-ONE_DESCRIPTOR Device_Descriptor =
-  {
-    (uint8_t*)CustomHID_DeviceDescriptor,
-    CUSTOMHID_SIZ_DEVICE_DESC
-  };
-
-ONE_DESCRIPTOR Config_Descriptor =
-  {
-    (uint8_t*)CustomHID_ConfigDescriptor,
-    CUSTOMHID_SIZ_CONFIG_DESC
-  };
-
-ONE_DESCRIPTOR CustomHID_Report_Descriptor =
-  {
-    (uint8_t *)CustomHID_ReportDescriptor,
-    CUSTOMHID_SIZ_REPORT_DESC
-  };
-
-ONE_DESCRIPTOR CustomHID_Hid_Descriptor =
-  {
-    (uint8_t*)CustomHID_ConfigDescriptor + CUSTOMHID_OFF_HID_DESC,
-    CUSTOMHID_SIZ_HID_DESC
-  };
-
-ONE_DESCRIPTOR String_Descriptor[4] =
-  {
-    {(uint8_t*)CustomHID_StringLangID, CUSTOMHID_SIZ_STRING_LANGID},
-    {(uint8_t*)CustomHID_StringVendor, CUSTOMHID_SIZ_STRING_VENDOR},
-    {(uint8_t*)CustomHID_StringProduct, CUSTOMHID_SIZ_STRING_PRODUCT},
-    {(uint8_t*)CustomHID_StringSerial, CUSTOMHID_SIZ_STRING_SERIAL}
-  };
-
 /* Extern variables ----------------------------------------------------------*/
 /* Private function prototypes -----------------------------------------------*/
 /* Extern function prototypes ------------------------------------------------*/
@@ -313,74 +281,6 @@ RESULT CustomHID_NoData_Setup(uint8_t RequestNo)
   {
   }
   return USB_UNSUPPORT;
-}
-
-/*******************************************************************************
-* Function Name  : CustomHID_GetDeviceDescriptor.
-* Description    : Gets the device descriptor.
-* Input          : Length
-* Output         : None.
-* Return         : The address of the device descriptor.
-*******************************************************************************/
-uint8_t *CustomHID_GetDeviceDescriptor(uint16_t Length)
-{
-  return Standard_GetDescriptorData(Length, &Device_Descriptor);
-}
-
-/*******************************************************************************
-* Function Name  : CustomHID_GetConfigDescriptor.
-* Description    : Gets the configuration descriptor.
-* Input          : Length
-* Output         : None.
-* Return         : The address of the configuration descriptor.
-*******************************************************************************/
-uint8_t *CustomHID_GetConfigDescriptor(uint16_t Length)
-{
-  return Standard_GetDescriptorData(Length, &Config_Descriptor);
-}
-
-/*******************************************************************************
-* Function Name  : CustomHID_GetStringDescriptor
-* Description    : Gets the string descriptors according to the needed index
-* Input          : Length
-* Output         : None.
-* Return         : The address of the string descriptors.
-*******************************************************************************/
-uint8_t *CustomHID_GetStringDescriptor(uint16_t Length)
-{
-  uint8_t wValue0 = pInformation->USBwValue0;
-  if (wValue0 > 4)
-  {
-    return NULL;
-  }
-  else 
-  {
-    return Standard_GetDescriptorData(Length, &String_Descriptor[wValue0]);
-  }
-}
-
-/*******************************************************************************
-* Function Name  : CustomHID_GetReportDescriptor.
-* Description    : Gets the HID report descriptor.
-* Input          : Length
-* Output         : None.
-* Return         : The address of the configuration descriptor.
-*******************************************************************************/
-uint8_t *CustomHID_GetReportDescriptor(uint16_t Length)
-{
-  return Standard_GetDescriptorData(Length, &CustomHID_Report_Descriptor);
-}
-
-/*******************************************************************************
-* Function Name  : CustomHID_GetHIDDescriptor.
-* Description    : Gets the HID descriptor.
-* Input          : Length
-* Output         : None.
-* Return         : The address of the configuration descriptor.
-*******************************************************************************/
-uint8_t *CustomHID_GetHIDDescriptor(uint16_t Length)
-{
-  return Standard_GetDescriptorData(Length, &CustomHID_Hid_Descriptor);
 }
 
 /*******************************************************************************
