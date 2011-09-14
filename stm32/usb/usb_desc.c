@@ -216,18 +216,19 @@ const uint8_t mouse_hid_report_desc[] = {
 };
 #endif
 
-const uint8_t debug_hid_report_desc[] = {
-	0x06, 0x31, 0xFF,			// Usage Page 0xFF31 (vendor defined)
-	0x09, 0x74,				// Usage 0x74
-	0xA1, 0x53,				// Collection 0x53
-	0x75, 0x08,				// report size = 8 bits
-	0x15, 0x00,				// logical minimum = 0
-	0x26, 0xFF, 0x00,		// logical maximum = 255
-	0x95, DEBUG_TX_SIZE,	// report count
-	0x09, 0x75,				// usage
-	0x81, 0x02,				// Input (array)
-	0xC0					// end collection
-};
+const uint8_t debug_hid_report_desc[] =
+	{
+		0x06, 0x31, 0xFF,			// Usage Page 0xFF31 (vendor defined)
+		0x09, 0x74,				// Usage 0x74
+		0xA1, 0x53,				// Collection 0x53
+		0x75, 0x08,				// report size = 8 bits
+		0x15, 0x00,				// logical minimum = 0
+		0x26, 0xFF, 0x00,		// logical maximum = 255
+		0x95, DEBUG_TX_SIZE,	// report count
+		0x09, 0x75,				// usage
+		0x81, 0x02,				// Input (array)
+		0xC0					// end collection
+	};
 
 #ifdef USB_EXTRA_ENABLE
 // audio controls & system controls
@@ -554,6 +555,54 @@ uint8_t *CustomHID_GetReportDescriptor(uint16_t Length)
 uint8_t *CustomHID_GetHIDDescriptor(uint16_t Length)
 {
   return Standard_GetDescriptorData(Length, &CustomHID_Hid_Descriptor);
+}
+
+struct ep_conf
+{
+	uint8_t ep_no;
+	uint8_t attr;
+	uint16_t max_packet_size;
+	uint8_t interval;
+
+	uint16_t rx_addr;
+	uint16_t tx_addr;
+}eps[8] = { {0, 0, 64, 0}, };
+
+void ep_init(uint8_t *conf_desc, size_t desc_size)
+{
+	for(int i=1; i<(sizeof(eps)/sizeof(eps[0])); ++i)
+		eps[i].ep_no = 0xff;
+
+	int pos=0, ep_num=1;
+	while(pos < desc_size) {
+		if (conf_desc[pos+1] == USB_DESC_TYPE_ENDPOINT) {
+			eps[ep_num].ep_no = conf_desc[pos+2];
+			eps[ep_num].attr = conf_desc[pos+3];
+			eps[ep_num].max_packet_size = conf_desc[pos+4]+conf_desc[5]*0x100;
+			eps[ep_num].interval = conf_desc[pos+6];
+			ep_num++;
+		}
+		pos += conf_desc[0];
+	}
+
+	struct ep_conf *p = eps;
+	uint16_t base = ep_num*8;
+	while(p->ep_no != 0xff) {
+		uint8_t no = p->ep_no & 0x7f;
+		switch (p->attr & 0x03) {
+			case 0x00: SetEPType(no, EP_BULK);	break;
+			case 0x01: SetEPType(no, EP_CONTROL);	break;
+			case 0x02: SetEPType(no, EP_ISOCHRONOUS);	break;
+			case 0x03: SetEPType(no, EP_INTERRUPT);	break;
+		}
+
+		SetEPTxAddr(no, ENDP1_TXADDR);
+		SetEPRxAddr(no, ENDP1_RXADDR);
+		SetEPTxCount(no, 2);
+		SetEPRxCount(no, 2);
+		SetEPRxStatus(no, EP_RX_VALID);
+		SetEPTxStatus(no, EP_TX_NAK);
+	}
 }
 
 /******************* (C) COPYRIGHT 2011 STMicroelectronics *****END OF FILE****/
