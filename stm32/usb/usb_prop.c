@@ -53,9 +53,9 @@ DEVICE_PROP Device_Property =
     CustomHID_Data_Setup,
     CustomHID_NoData_Setup,
     CustomHID_Get_Interface_Setting,
-    CustomHID_GetDeviceDescriptor,
-    CustomHID_GetConfigDescriptor,
-    CustomHID_GetStringDescriptor,
+    get_descriptor,
+    get_descriptor,
+    get_descriptor,
     0,
     0x40 /*MAX PACKET SIZE*/
   };
@@ -97,6 +97,8 @@ void CustomHID_init(void)
   /* Perform basic device initialization operations */
   USB_SIL_Init();
 
+  ep_init();
+  
   bDeviceState = UNCONNECTED;
 }
 
@@ -127,24 +129,7 @@ void CustomHID_Reset(void)
 #else 
   SetBTABLE(BTABLE_ADDRESS);
 
-  /* Initialize Endpoint 0 */
-  SetEPType(ENDP0, EP_CONTROL);
-  SetEPTxStatus(ENDP0, EP_TX_STALL);
-  SetEPRxAddr(ENDP0, ENDP0_RXADDR);
-  SetEPTxAddr(ENDP0, ENDP0_TXADDR);
-  Clear_Status_Out(ENDP0);
-  SetEPRxCount(ENDP0, Device_Property.MaxPacketSize);
-  SetEPRxValid(ENDP0);
-
-  /* Initialize Endpoint 1 */
-  SetEPType(ENDP1, EP_INTERRUPT);
-  SetEPTxAddr(ENDP1, ENDP1_TXADDR);
-  SetEPRxAddr(ENDP1, ENDP1_RXADDR);
-  SetEPTxCount(ENDP1, 2);
-  SetEPRxCount(ENDP1, 2);
-  SetEPRxStatus(ENDP1, EP_RX_VALID);
-  SetEPTxStatus(ENDP1, EP_TX_NAK);
-
+  ep_reset();
   /* Set this device to response on default address */
   SetDeviceAddress(0);
 #endif /* STM32F10X_CL */
@@ -224,16 +209,7 @@ RESULT CustomHID_Data_Setup(uint8_t RequestNo)
       && (Type_Recipient == (STANDARD_REQUEST | INTERFACE_RECIPIENT))
       && (pInformation->USBwIndex0 == 0))
   {
-
-    if (pInformation->USBwValue1 == REPORT_DESCRIPTOR)
-    {
-      CopyRoutine = CustomHID_GetReportDescriptor;
-    }
-    else if (pInformation->USBwValue1 == HID_DESCRIPTOR_TYPE)
-    {
-      CopyRoutine = CustomHID_GetHIDDescriptor;
-    }
-
+    CopyRoutine = get_descriptor;
   } /* End of GET_DESCRIPTOR */
 
   /*** GET_PROTOCOL ***/

@@ -218,16 +218,16 @@ const uint8_t mouse_hid_report_desc[] = {
 
 const uint8_t debug_hid_report_desc[] =
 	{
-		0x06, 0x31, 0xFF,			// Usage Page 0xFF31 (vendor defined)
+		0x06, 0x31, 0xFF,	// Usage Page 0xFF31 (vendor defined)
 		0x09, 0x74,				// Usage 0x74
 		0xA1, 0x53,				// Collection 0x53
 		0x75, 0x08,				// report size = 8 bits
 		0x15, 0x00,				// logical minimum = 0
-		0x26, 0xFF, 0x00,		// logical maximum = 255
+		0x26, 0xFF, 0x00,		  // logical maximum = 255
 		0x95, DEBUG_TX_SIZE,	// report count
 		0x09, 0x75,				// usage
 		0x81, 0x02,				// Input (array)
-		0xC0					// end collection
+		0xC0					    // end collection
 	};
 
 #ifdef USB_EXTRA_ENABLE
@@ -342,10 +342,10 @@ const uint8_t config1_descriptor[CONFIG1_DESC_SIZE] = {
 	0,					// bAlternateSetting
 	1,					// bNumEndpoints
 	0x03,				// bInterfaceClass (0x03 = HID)
-    // ThinkPad T23 BIOS doesn't work with boot mouse.
+  // ThinkPad T23 BIOS doesn't work with boot mouse.
 	0x00,				// bInterfaceSubClass (0x01 = Boot)
 	0x00,				// bInterfaceProtocol (0x02 = Mouse)
-    //0x01,				// bInterfaceSubClass (0x01 = Boot)
+  //0x01,				// bInterfaceSubClass (0x01 = Boot)
 	//0x02,				// bInterfaceProtocol (0x02 = Mouse)
 	0,					// iInterface
     
@@ -438,7 +438,7 @@ const uint8_t config1_descriptor[CONFIG1_DESC_SIZE] = {
 	// HID descriptor, HID 1.11 spec, section 6.2.1
 	9,					// bLength
 	0x21,				// bDescriptorType
-	0x11, 0x01,			// bcdHID
+	0x11, 0x01,	// bcdHID
 	0,					// bCountryCode
 	1,					// bNumDescriptors
 	0x22,				// bDescriptorType
@@ -455,153 +455,188 @@ const uint8_t config1_descriptor[CONFIG1_DESC_SIZE] = {
 #endif
   };
 
-/* USB String Descriptors (optional) */
-const uint8_t CustomHID_StringLangID[CUSTOMHID_SIZ_STRING_LANGID] =
-  {
-    CUSTOMHID_SIZ_STRING_LANGID,
-    USB_STRING_DESCRIPTOR_TYPE,
-    0x09,
-    0x04
+#ifndef MANUFACTURER
+#   define STR_MANUFACTURER	L"t.m.k."
+#else
+#   define STR_MANUFACTURER	LSTR(MANUFACTURER)
+#endif
+#ifndef PRODUCT
+#   define STR_PRODUCT		L"t.m.k. keyboard"
+#else
+#   define STR_PRODUCT		LSTR(PRODUCT)
+#endif
+
+struct usb_string_descriptor_struct {
+	uint8_t bLength;
+	uint8_t bDescriptorType;
+	int16_t wString[];
+};
+static struct usb_string_descriptor_struct string0 = {
+	4,
+	3,
+	{0x0409}
+};
+static struct usb_string_descriptor_struct string1 = {
+	sizeof(STR_MANUFACTURER),
+	3,
+	STR_MANUFACTURER
+};
+static struct usb_string_descriptor_struct string2 = {
+	sizeof(STR_PRODUCT),
+	3,
+	STR_PRODUCT
+};
+
+// This table defines which descriptor data is sent for each specific
+// request from the host (in wValue and wIndex).
+static struct descriptor_list_struct {
+	uint16_t	wValue;     // descriptor type
+	uint16_t	wIndex;
+	const uint8_t	*addr;
+	uint8_t		length;
+} descriptor_list[] = {
+        // DEVICE descriptor
+	{0x0100, 0x0000, device_descriptor, sizeof(device_descriptor)},
+        // CONFIGURATION descriptor
+	{0x0200, 0x0000, config1_descriptor, sizeof(config1_descriptor)},
+        // HID/REPORT descriptors
+	{0x2100, KBD_INTERFACE, config1_descriptor+KBD_HID_DESC_OFFSET, 9},
+	{0x2200, KBD_INTERFACE, keyboard_hid_report_desc, sizeof(keyboard_hid_report_desc)},
+#ifdef USB_MOUSE_ENABLE
+	{0x2100, MOUSE_INTERFACE, config1_descriptor+MOUSE_HID_DESC_OFFSET, 9},
+	{0x2200, MOUSE_INTERFACE, mouse_hid_report_desc, sizeof(mouse_hid_report_desc)},
+#endif
+	{0x2100, DEBUG_INTERFACE, config1_descriptor+DEBUG_HID_DESC_OFFSET, 9},
+	{0x2200, DEBUG_INTERFACE, debug_hid_report_desc, sizeof(debug_hid_report_desc)},
+#ifdef USB_EXTRA_ENABLE
+	{0x2100, EXTRA_INTERFACE, config1_descriptor+EXTRA_HID_DESC_OFFSET, 9},
+	{0x2200, EXTRA_INTERFACE, extra_hid_report_desc, sizeof(extra_hid_report_desc)},
+#endif
+#ifdef USB_NKRO_ENABLE
+	{0x2100, KBD2_INTERFACE, config1_descriptor+KBD2_HID_DESC_OFFSET, 9},
+	{0x2200, KBD2_INTERFACE, keyboard2_hid_report_desc, sizeof(keyboard2_hid_report_desc)},
+#endif
+        // STRING descriptors
+	{0x0300, 0x0000, (const uint8_t *)&string0, 4},
+	{0x0301, 0x0409, (const uint8_t *)&string1, sizeof(STR_MANUFACTURER)},
+	{0x0302, 0x0409, (const uint8_t *)&string2, sizeof(STR_PRODUCT)}
+};
+
+uint8_t *get_descriptor(uint16_t Length)
+{
+  for(int i=0; i<sizeof(descriptor_list)/sizeof(descriptor_list[0]); i++) {
+    if (descriptor_list[i].wValue == pInformation->USBwValue &&
+        descriptor_list[i].wIndex == pInformation->USBwIndex) {
+      ONE_DESCRIPTOR desc = {
+        descriptor_list[i].addr, descriptor_list[i].length};
+      return Standard_GetDescriptorData(Length, &desc);
+    }
   }
-  ; /* LangID = 0x0409: U.S. English */
-
-ONE_DESCRIPTOR Device_Descriptor =
-  {
-    (uint8_t*)device_descriptor,
-    sizeof(device_descriptor)
-  };
-
-ONE_DESCRIPTOR Config_Descriptor =
-  {
-    (uint8_t*)config_descriptor,
-    sizeof(config_descriptor)
-  };
-
-ONE_DESCRIPTOR CustomHID_Report_Descriptor =
-  {
-    (uint8_t *)CustomHID_ReportDescriptor,
-    CUSTOMHID_SIZ_REPORT_DESC
-  };
-
-ONE_DESCRIPTOR CustomHID_Hid_Descriptor =
-  {
-    (uint8_t*)CustomHID_ConfigDescriptor + CUSTOMHID_OFF_HID_DESC,
-    CUSTOMHID_SIZ_HID_DESC
-  };
-
-/*******************************************************************************
-* Function Name  : CustomHID_GetDeviceDescriptor.
-* Description    : Gets the device descriptor.
-* Input          : Length
-* Output         : None.
-* Return         : The address of the device descriptor.
-*******************************************************************************/
-uint8_t *CustomHID_GetDeviceDescriptor(uint16_t Length)
-{
-  return Standard_GetDescriptorData(Length, &Device_Descriptor);
+  return 0;
 }
 
-/*******************************************************************************
-* Function Name  : CustomHID_GetConfigDescriptor.
-* Description    : Gets the configuration descriptor.
-* Input          : Length
-* Output         : None.
-* Return         : The address of the configuration descriptor.
-*******************************************************************************/
-uint8_t *CustomHID_GetConfigDescriptor(uint16_t Length)
-{
-  return Standard_GetDescriptorData(Length, &Config_Descriptor);
-}
+#define EP_IN  1
+#define EP_OUT 2
 
-/*******************************************************************************
-* Function Name  : CustomHID_GetStringDescriptor
-* Description    : Gets the string descriptors according to the needed index
-* Input          : Length
-* Output         : None.
-* Return         : The address of the string descriptors.
-*******************************************************************************/
-uint8_t *CustomHID_GetStringDescriptor(uint16_t Length)
-{
-  uint8_t wValue0 = pInformation->USBwValue0;
-  if (wValue0 > 4)
-  {
-    return NULL;
-  }
-  else 
-  {
-    return Standard_GetDescriptorData(Length, &String_Descriptor[wValue0]);
-  }
-}
-
-/*******************************************************************************
-* Function Name  : CustomHID_GetReportDescriptor.
-* Description    : Gets the HID report descriptor.
-* Input          : Length
-* Output         : None.
-* Return         : The address of the configuration descriptor.
-*******************************************************************************/
-uint8_t *CustomHID_GetReportDescriptor(uint16_t Length)
-{
-  return Standard_GetDescriptorData(Length, &CustomHID_Report_Descriptor);
-}
-
-/*******************************************************************************
-* Function Name  : CustomHID_GetHIDDescriptor.
-* Description    : Gets the HID descriptor.
-* Input          : Length
-* Output         : None.
-* Return         : The address of the configuration descriptor.
-*******************************************************************************/
-uint8_t *CustomHID_GetHIDDescriptor(uint16_t Length)
-{
-  return Standard_GetDescriptorData(Length, &CustomHID_Hid_Descriptor);
-}
-
-struct ep_conf
-{
-	uint8_t ep_no;
+struct ep_conf {
+  uint8_t used;
 	uint8_t attr;
-	uint16_t max_packet_size;
-	uint8_t interval;
-
+  uint8_t direct;
 	uint16_t rx_addr;
+	uint16_t rx_max;
+  uint16_t rx_status;
 	uint16_t tx_addr;
-}eps[8] = { {0, 0, 64, 0}, };
+	uint16_t tx_max;
+  uint16_t tx_status;
+}ep[8];
 
-void ep_init(uint8_t *conf_desc, size_t desc_size)
+void ep_init()
 {
-	for(int i=1; i<(sizeof(eps)/sizeof(eps[0])); ++i)
-		eps[i].ep_no = 0xff;
-
-	int pos=0, ep_num=1;
-	while(pos < desc_size) {
-		if (conf_desc[pos+1] == USB_DESC_TYPE_ENDPOINT) {
-			eps[ep_num].ep_no = conf_desc[pos+2];
-			eps[ep_num].attr = conf_desc[pos+3];
-			eps[ep_num].max_packet_size = conf_desc[pos+4]+conf_desc[5]*0x100;
-			eps[ep_num].interval = conf_desc[pos+6];
-			ep_num++;
+  const uint8_t *conf_desc = config1_descriptor;
+  int desc_size = CONFIG1_DESC_SIZE;
+  
+  ep[0].used = 1;
+  ep[0].attr = 1;
+  ep[0].direct = EP_IN & EP_OUT;
+  ep[0].rx_max = 64;
+  ep[0].tx_max = 64;
+  ep[0].rx_status = EP_TX_STALL;
+  ep[0].tx_status = EP_RX_VALID;
+  
+	for(int i=1; i<8; ++i)
+		ep[i].used = 0;
+	
+  int ep_used = 1;
+	for(int pos=0; pos < desc_size; pos += conf_desc[pos]) {
+		if (conf_desc[pos+1] == USB_ENDPOINT_DESCRIPTOR_TYPE) {
+      uint8_t ep_no = conf_desc[pos+2] & 0x7;
+      bool in = conf_desc[pos+2] & 0x80;
+      uint16_t max_packet = conf_desc[pos+4]+conf_desc[5]*0x100;
+      
+      if(!ep[ep_no].used) {
+        ep[ep_no].used = 1;
+        ep[ep_no].rx_status = EP_TX_NAK;
+        ep[ep_no].tx_status = EP_RX_VALID;
+        ep[ep_no].direct = EP_OUT;
+        ep_used++;
+      }
+      ep[ep_no].attr = conf_desc[pos+3]&3;
+      if(in) {
+        ep[ep_no].tx_max = max_packet;
+        ep[ep_no].direct |= EP_IN;
+      } else {
+        ep[ep_no].rx_max = max_packet;
+      }
 		}
-		pos += conf_desc[0];
 	}
 
-	struct ep_conf *p = eps;
-	uint16_t base = ep_num*8;
-	while(p->ep_no != 0xff) {
-		uint8_t no = p->ep_no & 0x7f;
-		switch (p->attr & 0x03) {
-			case 0x00: SetEPType(no, EP_BULK);	break;
-			case 0x01: SetEPType(no, EP_CONTROL);	break;
-			case 0x02: SetEPType(no, EP_ISOCHRONOUS);	break;
-			case 0x03: SetEPType(no, EP_INTERRUPT);	break;
+	uint16_t base = ep_used*8;
+  for (int i=0; i<8; ++i) {
+    if (ep[i].used) {
+      if(ep[i].tx_max == 0)
+        ep[i].tx_max = ep[i].rx_max;
+      
+      ep[i].rx_addr = base;
+      base += ep[i].rx_max;
+
+      ep[i].tx_addr = base;
+      base += ep[i].tx_max;
+
+      base = (base+3) & 3;
+    }
+  }
+}
+
+void ep_reset() {
+  for (int i=0; i<8; ++i) {
+    if (!ep[i].used) continue;
+    
+		switch (ep[i].attr) {
+			case 0x00:
+        SetEPType(i, EP_BULK);
+        ClearEPDoubleBuff(i);
+        break;
+			case 0x01:
+        SetEPType(i, EP_CONTROL);
+        Clear_Status_Out(i);
+        break;
+			case 0x02:
+        SetEPType(i, EP_ISOCHRONOUS);
+        break;
+			case 0x03:
+        SetEPType(i, EP_INTERRUPT);
+        break;
 		}
 
-		SetEPTxAddr(no, ENDP1_TXADDR);
-		SetEPRxAddr(no, ENDP1_RXADDR);
-		SetEPTxCount(no, 2);
-		SetEPRxCount(no, 2);
-		SetEPRxStatus(no, EP_RX_VALID);
-		SetEPTxStatus(no, EP_TX_NAK);
+    if (ep[i].direct & EP_IN) {
+      SetEPTxAddr(i, ep[i].tx_addr);
+      SetEPTxCount(i, ep[i].tx_max);
+      SetEPTxStatus(i, ep[i].tx_status);
+    } else {
+      SetEPRxAddr(i, ep[i].rx_addr);
+      SetEPRxCount(i, ep[i].rx_max);
+      SetEPRxStatus(i, ep[i].rx_status);
+    }
 	}
 }
 
