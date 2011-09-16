@@ -469,22 +469,13 @@ const uint8_t config1_descriptor[CONFIG1_DESC_SIZE] = {
 struct usb_string_descriptor_struct {
 	uint8_t bLength;
 	uint8_t bDescriptorType;
-	int16_t wString[];
+	uint16_t wString[32];
 };
-static struct usb_string_descriptor_struct string0 = {
-	4,
-	3,
-	{0x0409}
-};
-static struct usb_string_descriptor_struct string1 = {
-	sizeof(STR_MANUFACTURER),
-	3,
-	STR_MANUFACTURER
-};
-static struct usb_string_descriptor_struct string2 = {
-	sizeof(STR_PRODUCT),
-	3,
-	STR_PRODUCT
+static struct usb_string_descriptor_struct strings[4] = {
+	{ 4, 3,	{0x0409} },
+	{ 0, 3, },
+	{ 0, 3, },
+	{ 0, 3, },
 };
 
 // This table defines which descriptor data is sent for each specific
@@ -495,11 +486,11 @@ static struct descriptor_list_struct {
 	const uint8_t	*addr;
 	uint8_t		length;
 } descriptor_list[] = {
-        // DEVICE descriptor
+  // DEVICE descriptor
 	{0x0100, 0x0000, device_descriptor, sizeof(device_descriptor)},
-        // CONFIGURATION descriptor
+  // CONFIGURATION descriptor
 	{0x0200, 0x0000, config1_descriptor, sizeof(config1_descriptor)},
-        // HID/REPORT descriptors
+  // HID/REPORT descriptors
 	{0x2100, KBD_INTERFACE, config1_descriptor+KBD_HID_DESC_OFFSET, 9},
 	{0x2200, KBD_INTERFACE, keyboard_hid_report_desc, sizeof(keyboard_hid_report_desc)},
 #ifdef USB_MOUSE_ENABLE
@@ -516,21 +507,53 @@ static struct descriptor_list_struct {
 	{0x2100, KBD2_INTERFACE, config1_descriptor+KBD2_HID_DESC_OFFSET, 9},
 	{0x2200, KBD2_INTERFACE, keyboard2_hid_report_desc, sizeof(keyboard2_hid_report_desc)},
 #endif
-        // STRING descriptors
-	{0x0300, 0x0000, (const uint8_t *)&string0, 4},
-	{0x0301, 0x0409, (const uint8_t *)&string1, sizeof(STR_MANUFACTURER)},
-	{0x0302, 0x0409, (const uint8_t *)&string2, sizeof(STR_PRODUCT)}
+  // STRING descriptors
+	{0x0300, 0x0000, (const uint8_t *)&strings[0], 4}, // language id
+	{0x0301, 0x0409, (const uint8_t *)&strings[1], },  // manufacturer
+	{0x0302, 0x0409, (const uint8_t *)&strings[2], },   // product
+	{0x0303, 0x0409, (const uint8_t *)&strings[3], },   // serial
 };
 
-uint8_t *get_descriptor(uint16_t Length)
+struct descriptor_list_struct *list_get_descriptor(uint16_t wValue, uint16_t wIndex)
 {
-  for(int i=0; i<sizeof(descriptor_list)/sizeof(descriptor_list[0]); i++) {
-    if (descriptor_list[i].wValue == pInformation->USBwValue &&
-        descriptor_list[i].wIndex == pInformation->USBwIndex) {
-      ONE_DESCRIPTOR desc = {
-        descriptor_list[i].addr, descriptor_list[i].length};
-      return Standard_GetDescriptorData(Length, &desc);
+  int idx;
+  for(idx=0; idx<sizeof(descriptor_list)/sizeof(descriptor_list[0]); idx++)
+    if (descriptor_list[idx].wValue == wValue && descriptor_list[idx].wIndex == wIndex)
+      return &descriptor_list[idx];
+  return 0;
+}
+
+void monkey_set_string_descriptor(uint16_t wValue, uint16_t wIndex, const char *string) {
+  struct descriptor_list_struct *descriptor;
+  
+  if((descriptor = list_get_descriptor(wValue, wIndex)) != 0) {
+    struct usb_string_descriptor_struct *string_descriptor;
+    int idx;
+
+    string_descriptor = (struct usb_string_descriptor_struct *)descriptor->addr;
+    string_descriptor->bDescriptorType = 3;
+    for(idx=0; string[idx]; ++idx)
+      string_descriptor->wString[idx] = (uint16_t)string[idx];
+    string_descriptor->bLength = (idx+1)*2;
+  }
+}
+
+uint8_t *monkey_get_descriptor(uint16_t Length)
+{
+  uint16_t wValue, wIndex, wOffset;
+  struct descriptor_list_struct *desc;
+  
+  wValue = ByteSwap(pInformation->USBwValue);
+  wIndex = ByteSwap(pInformation->USBwIndex);
+  wOffset = pInformation->Ctrl_Info.Usb_wOffset;
+  desc = list_get_descriptor(wValue, wIndex);
+
+  if(desc) {
+    if (Length == 0) {
+      pInformation->Ctrl_Info.Usb_wLength = desc->length - wOffset;
+      return 0;
     }
+    return (uint8_t *)desc->addr + wOffset;
   }
   return 0;
 }
@@ -538,80 +561,95 @@ uint8_t *get_descriptor(uint16_t Length)
 #define EP_IN  1
 #define EP_OUT 2
 
-struct ep_conf {
-  uint8_t used;
-	uint8_t attr;
+static struct ep_conf {
   uint8_t direct;
+	uint8_t attr;
 	uint16_t rx_addr;
 	uint16_t rx_max;
   uint16_t rx_status;
 	uint16_t tx_addr;
 	uint16_t tx_max;
   uint16_t tx_status;
-}ep[8];
+}ep_conf_list[8];
 
-void ep_init()
+void monkey_ep_init(void)
 {
-  const uint8_t *conf_desc = config1_descriptor;
-  int desc_size = CONFIG1_DESC_SIZE;
+  int pos, idx;
+  uint16_t packet_buf_base;
   
-  ep[0].used = 1;
-  ep[0].attr = 1;
-  ep[0].direct = EP_IN & EP_OUT;
-  ep[0].rx_max = 64;
-  ep[0].tx_max = 64;
-  ep[0].rx_status = EP_TX_STALL;
-  ep[0].tx_status = EP_RX_VALID;
-  
-	for(int i=1; i<8; ++i)
-		ep[i].used = 0;
-	
-  int ep_used = 1;
-	for(int pos=0; pos < desc_size; pos += conf_desc[pos]) {
-		if (conf_desc[pos+1] == USB_ENDPOINT_DESCRIPTOR_TYPE) {
-      uint8_t ep_no = conf_desc[pos+2] & 0x7;
-      bool in = conf_desc[pos+2] & 0x80;
-      uint16_t max_packet = conf_desc[pos+4]+conf_desc[5]*0x100;
+  monkey_set_string_descriptor(0x0301, 0x0409, "Sapphire Zhao");
+  monkey_set_string_descriptor(0x0302, 0x0409, "Monkey Pro");
+  monkey_set_string_descriptor(0x0303, 0x0409, "Sapphire Zhao");
+
+  ep_conf_list[0].direct = EP_IN | EP_OUT;
+  ep_conf_list[0].attr = 1;
+  ep_conf_list[0].rx_max = 64;
+  ep_conf_list[0].tx_max = 64;
+  ep_conf_list[0].rx_status = EP_TX_STALL;
+  ep_conf_list[0].tx_status = EP_RX_VALID;
+  packet_buf_base = 8;
+
+	for(pos=0; pos<sizeof(config1_descriptor); pos+=config1_descriptor[pos]) {
+		if(config1_descriptor[pos+1] == USB_ENDPOINT_DESCRIPTOR_TYPE) {
+      uint8_t no, direct, attr;
+      uint16_t max_packet;
+
+      no = config1_descriptor[pos+2]&0x7;
+      direct = config1_descriptor[pos+2]&0x80 ? EP_IN : EP_OUT;
+      attr = config1_descriptor[pos+3]&3;
+      max_packet = config1_descriptor[pos+4]+config1_descriptor[pos+5]*0x100;
+      if(ep_conf_list[no].direct == 0) {
+        ep_conf_list[no].rx_status = EP_TX_NAK;
+        ep_conf_list[no].tx_status = EP_RX_VALID;
+        ep_conf_list[no].attr = attr;
+      }
       
-      if(!ep[ep_no].used) {
-        ep[ep_no].used = 1;
-        ep[ep_no].rx_status = EP_TX_NAK;
-        ep[ep_no].tx_status = EP_RX_VALID;
-        ep[ep_no].direct = EP_OUT;
-        ep_used++;
-      }
-      ep[ep_no].attr = conf_desc[pos+3]&3;
-      if(in) {
-        ep[ep_no].tx_max = max_packet;
-        ep[ep_no].direct |= EP_IN;
+      ep_conf_list[no].direct |= direct;
+      if(direct & EP_IN) {
+        ep_conf_list[no].tx_max = max_packet;
       } else {
-        ep[ep_no].rx_max = max_packet;
+        ep_conf_list[no].rx_max = max_packet;
       }
+
+      packet_buf_base += 8;
 		}
 	}
-
-	uint16_t base = ep_used*8;
-  for (int i=0; i<8; ++i) {
-    if (ep[i].used) {
-      if(ep[i].tx_max == 0)
-        ep[i].tx_max = ep[i].rx_max;
+#ifdef EP_OUT_DEFAULT
+  for(idx=0; idx<8; ++idx) {
+    if(ep_conf_list[idx].direct == EP_IN) {
+        ep_conf_list[idx].direct |= EP_OUT;
+        ep_conf_list[idx].rx_max = ep_conf_list[idx].tx_max;
+        packet_buf_base += 8;
+    }
+  }
+#endif      
+  for(idx=0; idx<8; ++idx) {
+    if(ep_conf_list[idx].direct) {
+      if(ep_conf_list[idx].direct & EP_IN) {
+        ep_conf_list[idx].tx_addr = packet_buf_base;
+        packet_buf_base += (ep_conf_list[idx].tx_max+3)&~3;
+      }
       
-      ep[i].rx_addr = base;
-      base += ep[i].rx_max;
-
-      ep[i].tx_addr = base;
-      base += ep[i].tx_max;
-
-      base = (base+3) & 3;
+      if(ep_conf_list[idx].direct & EP_OUT) {
+        ep_conf_list[idx].rx_addr = packet_buf_base;
+        packet_buf_base += (ep_conf_list[idx].rx_max+3)&~3;
+      }
     }
   }
 }
 
-void ep_reset() {
-  for (int i=0; i<8; ++i) {
-    if (!ep[i].used) continue;
+void monkey_ep_reset(void) {
+  /* Set Joystick_DEVICE as not configured */
+  pInformation->Current_Configuration = 0;
+  pInformation->Current_Interface = 0;/*the default Interface*/
+
+  /* Current Feature initialization */
+  pInformation->Current_Feature = config1_descriptor[7];
+
+  for(int i=0; i<8; ++i) {
+    if(ep_conf_list[i].direct==0) continue;
     
-		switch (ep[i].attr) {
+		switch(ep_conf_list[i].attr) {
 			case 0x00:
         SetEPType(i, EP_BULK);
         ClearEPDoubleBuff(i);
@@ -628,14 +666,15 @@ void ep_reset() {
         break;
 		}
 
-    if (ep[i].direct & EP_IN) {
-      SetEPTxAddr(i, ep[i].tx_addr);
-      SetEPTxCount(i, ep[i].tx_max);
-      SetEPTxStatus(i, ep[i].tx_status);
-    } else {
-      SetEPRxAddr(i, ep[i].rx_addr);
-      SetEPRxCount(i, ep[i].rx_max);
-      SetEPRxStatus(i, ep[i].rx_status);
+    if(ep_conf_list[i].direct & EP_IN) {
+      SetEPTxAddr(i, ep_conf_list[i].tx_addr);
+      SetEPTxCount(i, ep_conf_list[i].tx_max);
+      SetEPTxStatus(i, ep_conf_list[i].tx_status);
+    }
+    if(ep_conf_list[i].direct & EP_OUT) {
+      SetEPRxAddr(i, ep_conf_list[i].rx_addr);
+      SetEPRxCount(i, ep_conf_list[i].rx_max);
+      SetEPRxStatus(i, ep_conf_list[i].rx_status);
     }
 	}
 }

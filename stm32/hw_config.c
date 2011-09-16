@@ -37,7 +37,7 @@ uint32_t ADC_ConvertedValueX_1 = 0;
 
 /* Extern variables ----------------------------------------------------------*/
 /* Private function prototypes -----------------------------------------------*/
-static void IntToUnicode (uint32_t value , uint8_t *pbuf , uint8_t len);
+static void IntToASCII (uint32_t value , uint8_t *pbuf , uint8_t len);
 /* Private functions ---------------------------------------------------------*/
 
 /*******************************************************************************
@@ -332,6 +332,27 @@ void EXTI_Configuration(void)
   EXTI_ClearITPendingBit(TAMPER_BUTTON_EXTI_LINE);
 #endif /* USE_STM32L152_EVAL */  
 }
+/*******************************************************************************
+* Function Name  : HexToChar.
+* Description    : Convert Hex 32Bits value into char.
+* Input          : None.
+* Output         : None.
+* Return         : None.
+*******************************************************************************/
+static void IntToAscii (uint32_t value , char *pbuf , uint8_t len)
+{
+  uint8_t idx = 0;
+  
+  for( idx = 0 ; idx < len ; idx ++)
+  {
+    if( ((value >> 28)) < 0xA )
+      pbuf[idx] = (value >> 28) + '0';
+    else
+      pbuf[idx] = (value >> 28) + 'A' - 10; 
+    value = value << 4;
+  }
+  pbuf[idx] = 0;
+}
 
 /*******************************************************************************
 * Function Name  : Get_SerialNum.
@@ -358,38 +379,13 @@ void Get_SerialNum(void)
 
   if (Device_Serial0 != 0)
   {
-    IntToUnicode (Device_Serial0, &CustomHID_StringSerial[2] , 8);
-    IntToUnicode (Device_Serial1, &CustomHID_StringSerial[18], 4);
+    char buf[32];
+    IntToAscii(Device_Serial0, buf, 8);
+    IntToAscii(Device_Serial1, buf+8, 4);
+    monkey_set_string_descriptor(0x0303, 0x0409, buf);
   }
 }
 
-/*******************************************************************************
-* Function Name  : HexToChar.
-* Description    : Convert Hex 32Bits value into char.
-* Input          : None.
-* Output         : None.
-* Return         : None.
-*******************************************************************************/
-static void IntToUnicode (uint32_t value , uint8_t *pbuf , uint8_t len)
-{
-  uint8_t idx = 0;
-  
-  for( idx = 0 ; idx < len ; idx ++)
-  {
-    if( ((value >> 28)) < 0xA )
-    {
-      pbuf[ 2* idx] = (value >> 28) + '0';
-    }
-    else
-    {
-      pbuf[2* idx] = (value >> 28) + 'A' - 10; 
-    }
-    
-    value = value << 4;
-    
-    pbuf[ 2* idx + 1] = 0;
-  }
-}
 #ifdef STM32F10X_CL
 /*******************************************************************************
 * Function Name  : USB_OTG_BSP_uDelay.

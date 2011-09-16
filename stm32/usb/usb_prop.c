@@ -53,9 +53,9 @@ DEVICE_PROP Device_Property =
     CustomHID_Data_Setup,
     CustomHID_NoData_Setup,
     CustomHID_Get_Interface_Setting,
-    get_descriptor,
-    get_descriptor,
-    get_descriptor,
+    monkey_get_descriptor,
+    monkey_get_descriptor,
+    monkey_get_descriptor,
     0,
     0x40 /*MAX PACKET SIZE*/
   };
@@ -97,7 +97,7 @@ void CustomHID_init(void)
   /* Perform basic device initialization operations */
   USB_SIL_Init();
 
-  ep_init();
+  monkey_ep_init();
   
   bDeviceState = UNCONNECTED;
 }
@@ -111,28 +111,12 @@ void CustomHID_init(void)
 *******************************************************************************/
 void CustomHID_Reset(void)
 {
-  /* Set Joystick_DEVICE as not configured */
-  pInformation->Current_Configuration = 0;
-  pInformation->Current_Interface = 0;/*the default Interface*/
-  
-  /* Current Feature initialization */
-  pInformation->Current_Feature = CustomHID_ConfigDescriptor[7];
-  
-#ifdef STM32F10X_CL   
-  /* EP0 is already configured in DFU_Init() by USB_SIL_Init() function */
-  
-  /* Init EP1 IN as Interrupt endpoint */
-  OTG_DEV_EP_Init(EP1_IN, OTG_DEV_EP_TYPE_INT, 2);
-  
-  /* Init EP1 OUT as Interrupt endpoint */
-  OTG_DEV_EP_Init(EP1_OUT, OTG_DEV_EP_TYPE_INT, 2);
-#else 
   SetBTABLE(BTABLE_ADDRESS);
 
-  ep_reset();
+  monkey_ep_reset();
+  
   /* Set this device to response on default address */
   SetDeviceAddress(0);
-#endif /* STM32F10X_CL */
 
   bDeviceState = ATTACHED;
 }
@@ -205,11 +189,10 @@ RESULT CustomHID_Data_Setup(uint8_t RequestNo)
 
   CopyRoutine = NULL;
 
-  if ((RequestNo == GET_DESCRIPTOR)
-      && (Type_Recipient == (STANDARD_REQUEST | INTERFACE_RECIPIENT))
-      && (pInformation->USBwIndex0 == 0))
+  if ((RequestNo == GET_DESCRIPTOR) &&
+      (Type_Recipient == (STANDARD_REQUEST | INTERFACE_RECIPIENT)))
   {
-    CopyRoutine = get_descriptor;
+    CopyRoutine = monkey_get_descriptor;
   } /* End of GET_DESCRIPTOR */
 
   /*** GET_PROTOCOL ***/
