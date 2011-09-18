@@ -24,29 +24,31 @@
 /* Enforce emmition of the vector table. */
 EXTERN (Reset_Handler)
 
+_estack = ORIGIN(ram)+LENGTH(ram);
+
 /* Define sections. */
 SECTIONS
 {
 	. = ORIGIN(rom);
 
 	.text : {
-		*(.isr_vectors)	/* Vector table */
+		KEEP(*(.isr_vector))	/* Vector table */
 		*(.text*)	/* Program code */
 		*(.rodata*)	/* Read-only data */
 		_etext = .;
-        _sidata = _etext;
+     _sidata = _etext;
 	} >rom
 
 	. = ORIGIN(ram);
 
 	.data : {
-        _sdata = . ;
+    _sdata = . ;
 		*(.data*)	/* Read-write initialized data */
 		_edata = .;
 	} >ram AT >rom
 
 	.bss : {
-        _sbss = .;
+    _sbss = .;
 		*(.bss*)	/* Read-write zero initialized data */
 		*(COMMON)
 		_ebss = .;

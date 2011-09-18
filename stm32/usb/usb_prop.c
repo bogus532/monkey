@@ -97,8 +97,8 @@ void CustomHID_init(void)
   /* Perform basic device initialization operations */
   USB_SIL_Init();
 
-  monkey_ep_init();
-  
+	monkey_ep_init();
+
   bDeviceState = UNCONNECTED;
 }
 
@@ -134,13 +134,6 @@ void CustomHID_SetConfiguration(void)
   {
     /* Device configured */
     bDeviceState = CONFIGURED;
-    
-    /* Start ADC Software Conversion */ 
-#ifdef STM32L1XX_MD
-    ADC_SoftwareStartConv(ADC1);
-#else
-    ADC_SoftwareStartConvCmd(ADC1, ENABLE);
-#endif /* STM32L1XX_MD */
   }
 }
 /*******************************************************************************
@@ -176,6 +169,37 @@ void CustomHID_Status_Out (void)
 {
 }
 
+uint8_t ReportBuffer[32] = {0};
+uint8_t ReportBufferOut[32] = {0};
+
+uint8_t *monkey_GetReport(uint16_t Length)
+{
+  uint16_t wOffset;
+  wOffset = pInformation->Ctrl_Info.Usb_wOffset;
+
+	if(Length == 0) {
+		int len;
+		if(pInformation->USBwIndex == 0)
+			len=8;
+		else if(pInformation->USBwIndex == 1)
+			len=32;
+		pInformation->Ctrl_Info.Usb_wLength = len - wOffset;
+		return 0;
+	} else {
+		return ReportBuffer + wOffset;
+	}
+}
+
+uint8_t *monkey_SetReport(uint16_t Length)
+{
+	if (Length == 0) {
+		pInformation->Ctrl_Info.Usb_wLength = 1;
+		return 0;
+	} else {
+		return ReportBufferOut;
+	}
+}
+
 /*******************************************************************************
 * Function Name  : CustomHID_Data_Setup
 * Description    : Handle the data class specific requests.
@@ -189,23 +213,24 @@ RESULT CustomHID_Data_Setup(uint8_t RequestNo)
 
   CopyRoutine = NULL;
 
-  if ((RequestNo == GET_DESCRIPTOR) &&
-      (Type_Recipient == (STANDARD_REQUEST | INTERFACE_RECIPIENT)))
-  {
+  if (RequestNo == GET_DESCRIPTOR) {
     CopyRoutine = monkey_get_descriptor;
-  } /* End of GET_DESCRIPTOR */
-
-  /*** GET_PROTOCOL ***/
-  else if ((Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT))
-           && RequestNo == GET_PROTOCOL)
-  {
-    CopyRoutine = CustomHID_GetProtocolValue;
-  }
+  } else if(Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT)) {
+		switch(RequestNo) {
+		case GET_PROTOCOL:
+			CopyRoutine = CustomHID_GetProtocolValue;
+			break;
+		case GET_REPORT:
+			CopyRoutine = monkey_GetReport;
+			break;
+		case SET_REPORT:
+			CopyRoutine = monkey_SetReport;
+			break;
+		}
+	}
 
   if (CopyRoutine == NULL)
-  {
     return USB_UNSUPPORT;
-  }
 
   pInformation->Ctrl_Info.CopyData = CopyRoutine;
   pInformation->Ctrl_Info.Usb_wOffset = 0;
@@ -229,15 +254,9 @@ RESULT CustomHID_NoData_Setup(uint8_t RequestNo)
       case GET_PROTOCOL:
       case SET_PROTOCOL:
         return CustomHID_SetProtocol();
-      case GET_IDLE:
       case SET_IDLE:
-      case GET_REPORT:
-      case SET_REPORT:
-        break;
+				return USB_SUCCESS;
     }
-  }
-  else if (Type_Recipient == (VENDOR_REQUEST | INTERFACE_RECIPIENT))
-  {
   }
   return USB_UNSUPPORT;
 }
@@ -296,14 +315,6 @@ uint8_t *CustomHID_GetProtocolValue(uint16_t Length)
   {
     return (uint8_t *)(&ProtocolValue);
   }
-}
-
-uint8_t *CustomHID_GetReport(uint16_t Length)
-{
-}
-
-uint8_t *CustomHID_SetReport(uint16_t Length)
-{
 }
 
 /******************* (C) COPYRIGHT 2011 STMicroelectronics *****END OF FILE****/

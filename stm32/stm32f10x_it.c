@@ -28,8 +28,6 @@
 /* Private variables ---------------------------------------------------------*/
 __IO uint8_t Send_Buffer[2];
 extern __IO uint8_t PrevXferComplete;
-extern uint32_t ADC_ConvertedValueX;
-extern uint32_t ADC_ConvertedValueX_1;
 
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
@@ -157,7 +155,6 @@ void SysTick_Handler(void)
 /*            STM32F10x Peripherals Interrupt Handlers                        */
 /******************************************************************************/
 
-#ifndef STM32F10X_CL
 /*******************************************************************************
 * Function Name  : USB_LP_CAN1_RX0_IRQHandler
 * Description    : This function handles USB Low Priority or CAN RX0 interrupts
@@ -170,7 +167,6 @@ void USB_LP_CAN1_RX0_IRQHandler(void)
 {
   USB_Istr();
 }
-#endif /* STM32F10X_CL */
 
 /*******************************************************************************
 * Function Name  : DMA1_Channel1_IRQHandler
@@ -204,20 +200,6 @@ void EXTI9_5_IRQHandler(void)
 void EXTI15_10_IRQHandler(void)
 {
 }
-
-#ifdef STM32F10X_CL
-/*******************************************************************************
-* Function Name  : OTG_FS_IRQHandler
-* Description    : This function handles USB-On-The-Go FS global interrupt request.
-* Input          : None
-* Output         : None
-* Return         : None
-*******************************************************************************/
-void OTG_FS_IRQHandler(void)
-{
-  STM32_PCD_OTG_ISR_Handler(); 
-}
-#endif /* STM32F10X_CL */
 
 /******************************************************************************/
 /*                 STM32F10x Peripherals Interrupt Handlers                   */

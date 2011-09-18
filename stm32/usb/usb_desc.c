@@ -28,23 +28,32 @@
 #   define PRODUCT_ID		0xBABE
 #endif
 
-#define KBD_INTERFACE		0
-#define KBD_ENDPOINT		1
+enum MONKEY_INTERFACE {
+  KBD_INTERFACE = 0,
+#ifdef USB_NKRO_ENABLE
+  KBD2_INTERFACE,
+#endif
+  DEBUG_INTERFACE,
+};
+enum MONKEY_ENDPOINT {
+  KBD_ENDPOINT = 1,
+#ifdef USB_NKRO_ENABLE
+  KBD2_ENDPOINT,
+#endif
+  DEBUG_TX_ENDPOINT,
+};
+
 #define KBD_SIZE		    8
 #define KBD_BUFFER		    EP_DOUBLE_BUFFER
 #define KBD_REPORT_KEYS		(KBD_SIZE - 2)
 
 // secondary keyboard
 #ifdef USB_NKRO_ENABLE
-#define KBD2_INTERFACE		4
-#define KBD2_ENDPOINT		5
 #define KBD2_SIZE		    16
 #define KBD2_BUFFER		    EP_DOUBLE_BUFFER
 #define KBD2_REPORT_KEYS	(KBD2_SIZE - 1)
 #endif
 
-#define DEBUG_INTERFACE		2
-#define DEBUG_TX_ENDPOINT	3
 #define DEBUG_TX_SIZE		32
 #define DEBUG_TX_BUFFER		EP_DOUBLE_BUFFER
 
@@ -535,6 +544,7 @@ void monkey_set_string_descriptor(uint16_t wValue, uint16_t wIndex, const char *
     for(idx=0; string[idx]; ++idx)
       string_descriptor->wString[idx] = (uint16_t)string[idx];
     string_descriptor->bLength = (idx+1)*2;
+	descriptor->length = string_descriptor->bLength;
   }
 }
 
@@ -585,8 +595,8 @@ void monkey_ep_init(void)
   ep_conf_list[0].attr = 1;
   ep_conf_list[0].rx_max = 64;
   ep_conf_list[0].tx_max = 64;
-  ep_conf_list[0].rx_status = EP_TX_STALL;
-  ep_conf_list[0].tx_status = EP_RX_VALID;
+  ep_conf_list[0].rx_status = EP_RX_VALID;
+  ep_conf_list[0].tx_status = EP_TX_STALL;
   packet_buf_base = 8;
 
 	for(pos=0; pos<sizeof(config1_descriptor); pos+=config1_descriptor[pos]) {
@@ -599,8 +609,8 @@ void monkey_ep_init(void)
       attr = config1_descriptor[pos+3]&3;
       max_packet = config1_descriptor[pos+4]+config1_descriptor[pos+5]*0x100;
       if(ep_conf_list[no].direct == 0) {
-        ep_conf_list[no].rx_status = EP_TX_NAK;
-        ep_conf_list[no].tx_status = EP_RX_VALID;
+        ep_conf_list[no].tx_status = EP_TX_NAK;
+        ep_conf_list[no].rx_status = EP_RX_VALID;
         ep_conf_list[no].attr = attr;
       }
       
@@ -614,6 +624,7 @@ void monkey_ep_init(void)
       packet_buf_base += 8;
 		}
 	}
+#define EP_OUT_DEFAULT 1
 #ifdef EP_OUT_DEFAULT
   for(idx=0; idx<8; ++idx) {
     if(ep_conf_list[idx].direct == EP_IN) {
@@ -639,6 +650,8 @@ void monkey_ep_init(void)
 }
 
 void monkey_ep_reset(void) {
+  int i;
+
   /* Set Joystick_DEVICE as not configured */
   pInformation->Current_Configuration = 0;
   pInformation->Current_Interface = 0;/*the default Interface*/
@@ -646,7 +659,7 @@ void monkey_ep_reset(void) {
   /* Current Feature initialization */
   pInformation->Current_Feature = config1_descriptor[7];
 
-  for(int i=0; i<8; ++i) {
+  for(i=0; i<8; ++i) {
     if(ep_conf_list[i].direct==0) continue;
     
 		switch(ep_conf_list[i].attr) {
@@ -667,9 +680,9 @@ void monkey_ep_reset(void) {
 		}
 
     if(ep_conf_list[i].direct & EP_IN) {
+      SetEPTxStatus(i, ep_conf_list[i].tx_status);
       SetEPTxAddr(i, ep_conf_list[i].tx_addr);
       SetEPTxCount(i, ep_conf_list[i].tx_max);
-      SetEPTxStatus(i, ep_conf_list[i].tx_status);
     }
     if(ep_conf_list[i].direct & EP_OUT) {
       SetEPRxAddr(i, ep_conf_list[i].rx_addr);

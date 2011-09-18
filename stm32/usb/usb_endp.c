@@ -28,7 +28,7 @@
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-uint8_t Receive_Buffer[2];
+uint8_t Receive_Buffer[8];
 extern __IO uint8_t PrevXferComplete;
 
 /* Private function prototypes -----------------------------------------------*/
@@ -47,9 +47,7 @@ void EP1_OUT_Callback(void)
   /* Read received data (2 bytes) */  
   USB_SIL_Read(EP1_OUT, Receive_Buffer);
   
-#ifndef STM32F10X_CL   
   SetEPRxStatus(ENDP1, EP_RX_VALID);
-#endif /* STM32F10X_CL */
 }
 
 /*******************************************************************************
