@@ -62,7 +62,6 @@ TARGET = monkey_stm32
 # Paths
 ROOTDIR = ..
 STM32DIR = $(ROOTDIR)/stm32
-USBDIR = $(STM32DIR)/usb
 COMMONDIR = $(STM32DIR)/common
 STMLIBDIR = $(STM32DIR)/Libraries
 STMSPDDIR = $(STMLIBDIR)/STM32F10x_StdPeriph_Driver
@@ -82,10 +81,10 @@ endif
 # List C source files here. (C dependencies are automatically generated.)
 # use file-extension c for "c-only"-files
 
-VPATH = $(ROOTDIR):$(STM32DIR):$(USBDIR)
+VPATH = $(ROOTDIR):$(STM32DIR)
 
 ## MAIN:
-SRC = main.c hw_config.c stm32f10x_it.c usb_desc.c usb_endp.c usb_istr.c usb_prop.c usb_pwr.c
+SRC = main.c hw_config.c stm32f10x_it.c usb.c usb_desc.c
 
 ## COMMON:
 ifeq ($(DEBUG),YES)

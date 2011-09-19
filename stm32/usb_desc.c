@@ -15,7 +15,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "usb_lib.h"
-#include "usb_desc.h"
+#include "usb.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -79,7 +79,7 @@ enum MONKEY_ENDPOINT {
 const uint8_t device_descriptor[] =
   {
 	18,					// bLength
-	USB_DEVICE_DESCRIPTOR_TYPE,	// bDescriptorType
+	DEVICE_DESCRIPTOR,	// bDescriptorType
 	0x00, 0x02,			// bcdUSB
 	0,					// bDeviceClass
 	0,					// bDeviceSubClass
@@ -305,7 +305,7 @@ const uint8_t extra_hid_report_desc[] = {
 const uint8_t config1_descriptor[CONFIG1_DESC_SIZE] = {
 	// configuration descriptor, USB spec 9.6.3, page 264-266, Table 9-10
 	9, 					// bLength;
-	USB_CONFIGURATION_DESCRIPTOR_TYPE,	// bDescriptorType;
+	2,	        // bDescriptorType;
 	LSB(CONFIG1_DESC_SIZE),			    // wTotalLength
 	MSB(CONFIG1_DESC_SIZE),
 	NUM_INTERFACES,		// bNumInterfaces
@@ -316,7 +316,7 @@ const uint8_t config1_descriptor[CONFIG1_DESC_SIZE] = {
 
 	// interface descriptor, USB spec 9.6.5, page 267-269, Table 9-12
 	9,					// bLength
-	USB_INTERFACE_DESCRIPTOR_TYPE,		// bDescriptorType
+	4,		      // bDescriptorType
 	KBD_INTERFACE,		// bInterfaceNumber
 	0,					// bAlternateSetting
 	1,					// bNumEndpoints
@@ -327,8 +327,8 @@ const uint8_t config1_descriptor[CONFIG1_DESC_SIZE] = {
     
 	// HID descriptor, HID 1.11 spec, section 6.2.1
 	9,					// bLength
-	HID_DESCRIPTOR_TYPE,// bDescriptorType
-	0x11, 0x01,			// bcdHID
+	21,         // bDescriptorType
+	0x11, 0x01,	// bcdHID
 	0,					// bCountryCode
 	1,					// bNumDescriptors
 	0x22,				// bDescriptorType
@@ -337,7 +337,7 @@ const uint8_t config1_descriptor[CONFIG1_DESC_SIZE] = {
     
 	// endpoint descriptor, USB spec 9.6.6, page 269-271, Table 9-13
 	7,					// bLength
-	USB_ENDPOINT_DESCRIPTOR_TYPE,	// bDescriptorType
+	5,	        // bDescriptorType
 	KBD_ENDPOINT | 0x80,// bEndpointAddress
 	0x03,				// bmAttributes (0x03=intr)
 	KBD_SIZE, 0,		// wMaxPacketSize
@@ -346,7 +346,7 @@ const uint8_t config1_descriptor[CONFIG1_DESC_SIZE] = {
 #ifdef USB_MOUSE_ENABLE
 	// interface descriptor, USB spec 9.6.5, page 267-269, Table 9-12
 	9,					// bLength
-	USB_INTERFACE_DESCRIPTOR_TYPE,	// bDescriptorType
+	4,	        // bDescriptorType
 	MOUSE_INTERFACE,	// bInterfaceNumber
 	0,					// bAlternateSetting
 	1,					// bNumEndpoints
@@ -360,8 +360,8 @@ const uint8_t config1_descriptor[CONFIG1_DESC_SIZE] = {
     
 	// HID descriptor, HID 1.11 spec, section 6.2.1
 	9,					// bLength
-	HID_DESCRIPTOR_TYPE,// bDescriptorType
-	0x11, 0x01,			// bcdHID
+	21,         // bDescriptorType
+	0x11, 0x01,	// bcdHID
 	0,					// bCountryCode
 	1,					// bNumDescriptors
 	0x22,				// bDescriptorType
@@ -519,8 +519,8 @@ static struct descriptor_list_struct {
   // STRING descriptors
 	{0x0300, 0x0000, (const uint8_t *)&strings[0], 4}, // language id
 	{0x0301, 0x0409, (const uint8_t *)&strings[1], },  // manufacturer
-	{0x0302, 0x0409, (const uint8_t *)&strings[2], },   // product
-	{0x0303, 0x0409, (const uint8_t *)&strings[3], },   // serial
+	{0x0302, 0x0409, (const uint8_t *)&strings[2], },  // product
+	{0x0303, 0x0409, (const uint8_t *)&strings[3], },  // serial
 };
 
 struct descriptor_list_struct *list_get_descriptor(uint16_t wValue, uint16_t wIndex)
@@ -600,7 +600,7 @@ void monkey_ep_init(void)
   packet_buf_base = 8;
 
 	for(pos=0; pos<sizeof(config1_descriptor); pos+=config1_descriptor[pos]) {
-		if(config1_descriptor[pos+1] == USB_ENDPOINT_DESCRIPTOR_TYPE) {
+		if(config1_descriptor[pos+1] == 0x5) { // ep descriptor
       uint8_t no, direct, attr;
       uint16_t max_packet;
 

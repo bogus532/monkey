@@ -19,8 +19,7 @@
 #include "platform_config.h"
 #include "stm32f10x_it.h"
 #include "usb_lib.h"
-#include "usb_istr.h"
-#include "usb_pwr.h"
+#include "usb.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/

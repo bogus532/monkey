@@ -23,8 +23,7 @@
 #include "platform_config.h"
 #include "hw_config.h"
 #include "usb_lib.h"
-#include "usb_desc.h"
-#include "usb_pwr.h"
+#include "usb.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -97,42 +96,6 @@ void Set_USBClock(void)
   
   /* Enable the USB clock */
   RCC_APB1PeriphClockCmd(RCC_APB1Periph_USB, ENABLE);
-}
-
-/*******************************************************************************
-* Function Name  : Enter_LowPowerMode.
-* Description    : Power-off system clocks and power while entering suspend mode.
-* Input          : None.
-* Output         : None.
-* Return         : None.
-*******************************************************************************/
-void Enter_LowPowerMode(void)
-{
-  /* Set the device state to suspend */
-  bDeviceState = SUSPENDED;
-}
-
-/*******************************************************************************
-* Function Name  : Leave_LowPowerMode.
-* Description    : Restores system clocks and power while exiting suspend mode.
-* Input          : None.
-* Output         : None.
-* Return         : None.
-*******************************************************************************/
-void Leave_LowPowerMode(void)
-{
-  DEVICE_INFO *pInfo = &Device_Info;
-  
-  /* Set the device state to the correct state */
-  if (pInfo->Current_Configuration != 0)
-  {
-    /* Device configured */
-    bDeviceState = CONFIGURED;
-  }
-  else 
-  {
-    bDeviceState = ATTACHED;
-  }
 }
 
 /*******************************************************************************
