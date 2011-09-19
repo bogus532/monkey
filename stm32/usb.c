@@ -38,13 +38,6 @@ void Enter_LowPowerMode(void)
   bDeviceState = SUSPENDED;
 }
 
-/*******************************************************************************
-* Function Name  : Leave_LowPowerMode.
-* Description    : Restores system clocks and power while exiting suspend mode.
-* Input          : None.
-* Output         : None.
-* Return         : None.
-*******************************************************************************/
 void Leave_LowPowerMode(void)
 {
   DEVICE_INFO *pInfo = &Device_Info;

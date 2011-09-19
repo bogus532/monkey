@@ -272,35 +272,49 @@ const uint8_t extra_hid_report_desc[] = {
 };
 #endif
 
-#define KBD_HID_DESC_NUM                0
-#define KBD_HID_DESC_OFFSET             (9+(9+9+7)*KBD_HID_DESC_NUM+9)
+typedef enum _HID_NUMBER{
+  KBD_HID_DESC_NUM,
+#ifdef USB_MOUSE_ENABLE
+  MOUSE_HID_DESC_NUM,
+#endif
+  DEBUG_HID_DESC_NUM,
+#ifdef USB_EXTRA_ENABLE
+  EXTRA_HID_DESC_NUM,
+#endif
+#ifdef USB_NKRO_ENABLE
+  KBD2_HID_DESC_NUM,
+#endif
+  NUM_INTERFACES,
+}HID_NUMBER;
+
+#define KBD_HID_DESC_OFFSET        (9+9)
+#define KBD_HID_DESC_SIZE          (9+9+7+7)
 
 #ifdef USB_MOUSE_ENABLE
-#   define MOUSE_HID_DESC_NUM           (KBD_HID_DESC_NUM + 1)
-#   define MOUSE_HID_DESC_OFFSET        (9+(9+9+7)*MOUSE_HID_DESC_NUM+9)
+#  define MOUSE_HID_DESC_OFFSET    (9+KBD_HID_DESC_SIZE+9)
+#  define MOUSE_HID_DESC_SIZE      (9+9+7)
 #else
-#   define MOUSE_HID_DESC_NUM           (KBD_HID_DESC_NUM + 0)
+#  define MOUSE_HID_DESC_SIZE      0
 #endif
 
-#define DEBUG_HID_DESC_NUM              (MOUSE_HID_DESC_NUM + 1)
-#define DEBUG_HID_DESC_OFFSET           (9+(9+9+7)*DEBUG_HID_DESC_NUM+9)
+#define DEBUG_HID_DESC_SIZE        (9+9+7)
+#define DEBUG_HID_DESC_OFFSET      (9+KBD_HID_DESC_SIZE+DEBUG_HID_DESC_OFFSET+9)
 
 #ifdef USB_EXTRA_ENABLE
-#   define EXTRA_HID_DESC_NUM           (DEBUG_HID_DESC_NUM + 1)
-#   define EXTRA_HID_DESC_OFFSET        (9+(9+9+7)*EXTRA_HID_DESC_NUM+9)
+#  define EXTRA_HID_DESC_OFFSET    (9+KBD_HID_DESC_SIZE+DEBUG_HID_DESC_SIZE+DEBUG_HID_DESC_SIZE+9)
+#  define EXTRA_HID_DESC_SIZE      (9+9+7)
 #else
-#   define EXTRA_HID_DESC_NUM           (DEBUG_HID_DESC_NUM + 0)
+#  define EXTRA_HID_DESC_SIZE      0
 #endif
 
 #ifdef USB_NKRO_ENABLE
-#   define KBD2_HID_DESC_NUM            (EXTRA_HID_DESC_NUM + 1)
-#   define KBD2_HID_DESC_OFFSET         (9+(9+9+7)*EXTRA_HID_DESC_NUM+9)
+#  define KBD2_HID_DESC_OFFSET     (9+KBD_HID_DESC_SIZE+DEBUG_HID_DESC_SIZE+DEBUG_HID_DESC_SIZE+EXTRA_HID_DESC_SIZE+9)
+#  define KBD2_HID_DESC_SIZE       (9+9+7)
 #else
-#   define KBD2_HID_DESC_NUM            (EXTRA_HID_DESC_NUM + 0)
+#  define KBD2_HID_DESC_SIZE       0
 #endif
 
-#define NUM_INTERFACES                  (KBD2_HID_DESC_NUM + 1)
-#define CONFIG1_DESC_SIZE               (9+(9+9+7)*NUM_INTERFACES)
+#define CONFIG1_DESC_SIZE          (9+KBD_HID_DESC_SIZE+DEBUG_HID_DESC_SIZE+DEBUG_HID_DESC_SIZE+EXTRA_HID_DESC_SIZE+KBD2_HID_DESC_SIZE)
 
 const uint8_t config1_descriptor[CONFIG1_DESC_SIZE] = {
 	// configuration descriptor, USB spec 9.6.3, page 264-266, Table 9-10
@@ -341,6 +355,14 @@ const uint8_t config1_descriptor[CONFIG1_DESC_SIZE] = {
 	KBD_ENDPOINT | 0x80,// bEndpointAddress
 	0x03,				// bmAttributes (0x03=intr)
 	KBD_SIZE, 0,		// wMaxPacketSize
+	10,					// bInterval
+
+  // endpoint descriptor, USB spec 9.6.6, page 269-271, Table 9-13
+	7,					// bLength
+	5,	        // bDescriptorType
+	KBD_ENDPOINT,// bEndpointAddress
+	0x03,				// bmAttributes (0x03=intr)
+	1, 0,       // wMaxPacketSize
 	10,					// bInterval
 
 #ifdef USB_MOUSE_ENABLE
