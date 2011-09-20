@@ -1,6 +1,9 @@
 #include "stm32f10x.h"
 #include "usb_lib.h"
 #include "usb.h"
+#include "usb_keycodes.h"
+#include "monkey.h"
+#include "keymap.h"
 
 __IO uint32_t bDeviceState; /* USB device status */
 __IO bool fSuspendEnabled;  /* true when suspend is possible */
@@ -10,9 +13,15 @@ __IO uint16_t wIstr;  /* ISTR register last read value */
 __IO uint8_t bIntPackSOF = 0;  /* SOFs received between 2 consecutive packets */
 uint32_t ProtocolValue;
 uint8_t Receive_Buffer[8];
+uint8_t UsbIdleRate = 0;
+static uint8_t monkey_short_request_buffer[64];
+uint8_t *monkey_msg_ptr;
+uint16_t monkey_msg_length;
+
+#define MONKEY_NO_PROCESS (-1)
 
 extern void monkey_set_string_descriptor(uint16_t wValue, uint16_t wIndex, const char *string);
-extern uint8_t *monkey_get_descriptor(uint16_t Length);
+extern struct descriptor_list_struct *list_get_descriptor(uint16_t wValue, uint16_t wIndex);
 extern void monkey_ep_init(void);
 extern void monkey_ep_reset(void);
 extern void Get_SerialNum(void);
@@ -235,102 +244,152 @@ void monkey_Status_Out (void)
 {
 }
 
-uint8_t ReportBuffer[32] = {0};
-uint8_t ReportBufferOut[32] = {0};
-
-uint8_t *monkey_GetReport(uint16_t Length)
+uint8_t monkey_vendor_request(uint8_t RequestNo)
 {
-  uint16_t wOffset;
-  wOffset = pInformation->Ctrl_Info.Usb_wOffset;
-
-	if(Length == 0) {
-		int len;
-		if(pInformation->USBwIndex == 0)
-			len=8;
-		else if(pInformation->USBwIndex == 1)
-			len=32;
-		pInformation->Ctrl_Info.Usb_wLength = len - wOffset;
+	if(KURQ_AIKON_SET_KEY_MIN  <= RequestNo &&
+		 RequestNo <= KURQ_AIKON_SET_KEY_MAX)
+	{
+		uint8_t layer = pInformation->USBwIndex0;;
+		uint8_t key_index = RequestNo;
+		if ( layer >= 0 && layer < layer_max)
+			monkey_config.matrix[layer][key_index] = pInformation->USBwValue0;
 		return 0;
-	} else {
-		return ReportBuffer + wOffset;
 	}
-}
-
-uint8_t *monkey_SetReport(uint16_t Length)
-{
-	if (Length == 0) {
-		pInformation->Ctrl_Info.Usb_wLength = 1;
+	
+  switch(RequestNo)
+  {
+	case  KURQ_AIKON_READ_MATRIX_NORMAL:
+		monkey_msg_ptr = monkey_config.matrix[layer_normal];
+		return layer_aikon_keys;
+	case  KURQ_AIKON_READ_MATRIX_FN:
+		monkey_msg_ptr = monkey_config.matrix[layer_fn1];
+		return layer_aikon_keys;
+	case  KURQ_AIKON_READ_MATRIX_NUMLOCK:
+		monkey_msg_ptr = monkey_config.matrix[layer_numlock];
+		return layer_aikon_keys;
+	case KURQ_AIKON_WRITE_TO_EEPROM:
+		//save_monkey_config = true;
 		return 0;
-	} else {
-		return ReportBufferOut;
+	case KURQ_AIKON_GET_LAST_KEY_INFO:
+	{
+		monkey_msg_ptr[0] = last_row;
+		monkey_msg_ptr[1] = last_column;
+		monkey_msg_ptr[2] = keymap_get_keycode(layer_normal, last_row, last_column);
+		monkey_msg_ptr[3] = keymap_get_keycode(layer_fn1, last_row, last_column);
+		monkey_msg_ptr[4] = keymap_get_keycode(layer_numlock, last_row, last_column);
+		return 5;
 	}
+	case KURQ_AIKON_GET_ROWCOL:
+		monkey_msg_ptr[0] = monkey_config.row-1;
+		monkey_msg_ptr[1] = monkey_config.column-1;
+		return 2;
+	case KURQ_AIKON_SET_ROW:
+		monkey_config.row =  pInformation->USBwValue0+1;
+		return 0;
+	case KURQ_AIKON_SET_COLUMN:
+		monkey_config.column = pInformation->USBwValue0+1;
+		return 0;
+	case KURQ_AIKON_GET_FLAGS:
+		monkey_msg_ptr[0] = monkey_config.flags;
+		return 1;
+	case KURQ_AIKON_SET_FLAGS:
+		monkey_config.flags =  pInformation->USBwValue0;
+		return 0;
+	case KURQ_RESET:
+    /* loop "endlessly" for ~0.5s */
+	default:
+    return MONKEY_NO_PROCESS;
+  }
 }
 
-uint8_t *monkey_GetProtocolValue(uint16_t Length)
-{
-  if (Length == 0)
-  {
-    pInformation->Ctrl_Info.Usb_wLength = 1;
-    return NULL;
+uint8_t *monkey_copydata(uint16_t Length) {
+  if(Length == 0) {
+    pInformation->Ctrl_Info.Usb_wLength =
+        monkey_msg_length - pInformation->Ctrl_Info.Usb_wOffset;
+    return 0;
   }
-  else
-  {
-    return (uint8_t *)(&ProtocolValue);
-  }
+  return monkey_msg_ptr + pInformation->Ctrl_Info.Usb_wOffset;
 }
 
-RESULT monkey_SetProtocol(void)
-{
-  uint8_t wValue0 = pInformation->USBwValue0;
-  ProtocolValue = wValue0;
-  return USB_SUCCESS;
+int monkey_request_handler(uint8_t RequestNo) {
+  if(Type_Recipient == (STANDARD_REQUEST | INTERFACE_RECIPIENT)) {
+    if (RequestNo == GET_DESCRIPTOR) {
+        struct descriptor_list_struct *desc;
+        desc = list_get_descriptor(ByteSwap(pInformation->USBwValue),
+                                   ByteSwap(pInformation->USBwIndex));
+        if (desc) {
+          monkey_msg_ptr = (uint8_t *)desc->addr;
+          return desc->length;
+        } 
+    }
+  } else if(Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT)) {
+		switch(RequestNo) {
+      case GET_PROTOCOL:
+        *(uint8_t*)monkey_msg_ptr = ProtocolValue;
+        return 1;
+      case SET_PROTOCOL:
+        ProtocolValue = pInformation->USBwValue0;
+        return 0;
+      case GET_REPORT:
+        break;
+      case SET_REPORT:
+        break;
+      case GET_IDLE:
+       *(uint8_t*)monkey_msg_ptr = UsbIdleRate;        
+        return 1;
+      case SET_IDLE:
+        UsbIdleRate = pInformation->USBwValue1;
+        return 0;
+		}
+  } else if(Type_Recipient == (VENDOR_REQUEST | INTERFACE_RECIPIENT)) {
+    return monkey_vendor_request(RequestNo);
+  }
+  return MONKEY_NO_PROCESS;
 }
 
 RESULT monkey_Data_Setup(uint8_t RequestNo)
 {
-  uint8_t *(*CopyRoutine)(uint16_t);
+  monkey_msg_ptr = monkey_short_request_buffer;
+  monkey_msg_length = monkey_request_handler(RequestNo);
 
-  CopyRoutine = NULL;
-
-  if (RequestNo == GET_DESCRIPTOR) {
-    CopyRoutine = monkey_get_descriptor;
-  } else if(Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT)) {
-		switch(RequestNo) {
-		case GET_PROTOCOL:
-			CopyRoutine = monkey_GetProtocolValue;
-			break;
-		case GET_REPORT:
-			CopyRoutine = monkey_GetReport;
-			break;
-		case SET_REPORT:
-			CopyRoutine = monkey_SetReport;
-			break;
-		}
-	}
-
-  if (CopyRoutine == NULL)
+  if(monkey_msg_length == MONKEY_NO_PROCESS) 
     return USB_UNSUPPORT;
-
-  pInformation->Ctrl_Info.CopyData = CopyRoutine;
+  else if(monkey_msg_length == 0) 
+    return USB_SUCCESS;
+  
+  pInformation->Ctrl_Info.CopyData = monkey_copydata;
   pInformation->Ctrl_Info.Usb_wOffset = 0;
-  (*CopyRoutine)(0);
+  (*pInformation->Ctrl_Info.CopyData)(0);
   return USB_SUCCESS;
 }
 
 RESULT monkey_NoData_Setup(uint8_t RequestNo)
 {
-  if (Type_Recipient == (CLASS_REQUEST | INTERFACE_RECIPIENT))
-  {
-    switch (RequestNo)
-    {
-      case GET_PROTOCOL:
-      case SET_PROTOCOL:
-        return monkey_SetProtocol();
-      case SET_IDLE:
-				return USB_SUCCESS;
+  monkey_msg_length = monkey_request_handler(RequestNo);
+
+  if(monkey_msg_length == MONKEY_NO_PROCESS)
+    return USB_UNSUPPORT;
+  return USB_SUCCESS;
+}
+
+uint8_t *monkey_get_descriptor(uint16_t Length)
+{
+  uint16_t wValue, wIndex, wOffset;
+  struct descriptor_list_struct *desc;
+  
+  wValue = ByteSwap(pInformation->USBwValue);
+  wIndex = ByteSwap(pInformation->USBwIndex);
+  wOffset = pInformation->Ctrl_Info.Usb_wOffset;
+  desc = list_get_descriptor(wValue, wIndex);
+
+  if(desc) {
+    if (Length == 0) {
+      pInformation->Ctrl_Info.Usb_wLength = desc->length - wOffset;
+      return 0;
     }
+    return (uint8_t *)desc->addr + wOffset;
   }
-  return USB_UNSUPPORT;
+  return 0;
 }
 
 RESULT monkey_Get_Interface_Setting(uint8_t Interface, uint8_t AlternateSetting)
@@ -405,8 +464,6 @@ void USB_Istr(void)
 
 void EP1_OUT_Callback(void)
 {
-  BitAction Led_State;
-
   /* Read received data (2 bytes) */  
   USB_SIL_Read(EP1_OUT, Receive_Buffer);
   

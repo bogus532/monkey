@@ -507,12 +507,7 @@ static struct usb_string_descriptor_struct strings[4] = {
 
 // This table defines which descriptor data is sent for each specific
 // request from the host (in wValue and wIndex).
-static struct descriptor_list_struct {
-	uint16_t	wValue;     // descriptor type
-	uint16_t	wIndex;
-	const uint8_t	*addr;
-	uint8_t		length;
-} descriptor_list[] = {
+static struct descriptor_list_struct descriptor_list[] = {
   // DEVICE descriptor
 	{0x0100, 0x0000, device_descriptor, sizeof(device_descriptor)},
   // CONFIGURATION descriptor
@@ -564,26 +559,6 @@ void monkey_set_string_descriptor(uint16_t wValue, uint16_t wIndex, const char *
     string_descriptor->bLength = (idx+1)*2;
 	descriptor->length = string_descriptor->bLength;
   }
-}
-
-uint8_t *monkey_get_descriptor(uint16_t Length)
-{
-  uint16_t wValue, wIndex, wOffset;
-  struct descriptor_list_struct *desc;
-  
-  wValue = ByteSwap(pInformation->USBwValue);
-  wIndex = ByteSwap(pInformation->USBwIndex);
-  wOffset = pInformation->Ctrl_Info.Usb_wOffset;
-  desc = list_get_descriptor(wValue, wIndex);
-
-  if(desc) {
-    if (Length == 0) {
-      pInformation->Ctrl_Info.Usb_wLength = desc->length - wOffset;
-      return 0;
-    }
-    return (uint8_t *)desc->addr + wOffset;
-  }
-  return 0;
 }
 
 #define EP_IN  1

@@ -34,4 +34,11 @@ typedef enum _HID_REQUESTS
   SET_PROTOCOL
 } HID_REQUESTS;
 
+struct descriptor_list_struct {
+	uint16_t	wValue;     // descriptor type
+	uint16_t	wIndex;
+	const uint8_t	*addr;
+	uint8_t		length;
+};
+  
 #endif
