@@ -16,7 +16,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <stdint.h>
 #include <stdbool.h>
+#ifdef HOST_STM32
+#define _delay_us(us)
+#define _delay_ms(ms)
+#else
 #include <util/delay.h>
+#endif
 #include "usb_keycodes.h"
 #include "host.h"
 #include "print.h"

@@ -20,7 +20,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <stdint.h>
 #include <stdbool.h>
+#ifdef HOST_STM32
+#define PROGMEM
+#define pgm_read_byte(p) (*(p))
+#else
 #include <avr/pgmspace.h>
+#endif
 #include "host.h"
 #include "usb_keycodes.h"
 #include "print.h"

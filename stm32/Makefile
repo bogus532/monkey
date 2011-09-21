@@ -61,6 +61,7 @@ TARGET = monkey_stm32
 
 # Paths
 ROOTDIR = ..
+MONKEYDIR = $(ROOTDIR)/monkey
 STM32DIR = $(ROOTDIR)/stm32
 COMMONDIR = $(STM32DIR)/common
 STMLIBDIR = $(STM32DIR)/Libraries
@@ -81,10 +82,13 @@ endif
 # List C source files here. (C dependencies are automatically generated.)
 # use file-extension c for "c-only"-files
 
-VPATH = $(ROOTDIR):$(STM32DIR)
+VPATH = $(ROOTDIR):$(STM32DIR):$(MONKEYDIR)
+CONFIG_H = $(MONKEYDIR)/config_vusb.h
 
 ## MAIN:
-SRC = main.c hw_config.c stm32f10x_it.c usb.c usb_desc.c
+SRC = main.c hw_config.c stm32f10x_it.c usb.c usb_desc.c keymap.c matrix.c
+
+include $(ROOTDIR)/Makefile.common
 
 ## COMMON:
 ifeq ($(DEBUG),YES)
@@ -206,6 +210,7 @@ DEBUGF = gdb
 # -U options for C here.
 CDEFS = -DSTM32F10X_$(shell echo $(MODEL) | tr a-z A-Z)
 CDEFS += -DUSE_STDPERIPH_DRIVER
+CDEFS += -DHOST_STM32
 CDEFS += -DUSE_$(BOARD)
 CDEFS += -DHSE_VALUE=$(F_XTAL)UL
 CDEFS += -D$(SYSCLOCK_CL)
@@ -269,6 +274,7 @@ CFLAGS += -Wall
 CFLAGS += -Wa,-adhlns=$(addprefix $(OUTDIR)/, $(notdir $(addsuffix .lst, $(basename $<))))
 # Compiler flags to generate dependency files:
 CFLAGS += -MD -MP -MF $(OUTDIR)/.dep/$(@F).d
+CFLAGS += -include $(CONFIG_H)
 
 # flags only for C
 #CONLYFLAGS += -Wnested-externs
@@ -281,6 +287,7 @@ ASFLAGS  = -mcpu=$(MCU) -mthumb -I. -x assembler-with-cpp
 ASFLAGS += $(ADEFS)
 ASFLAGS += -Wa,-adhlns=$(addprefix $(OUTDIR)/, $(notdir $(addsuffix .lst, $(basename $<))))
 ASFLAGS += $(patsubst %,-I%,$(EXTRAINCDIRS))
+ASFLAGS += -include $(CONFIG_H)
 
 MATH_LIB = -lm
 

@@ -20,9 +20,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <stdint.h>
 #include <stdbool.h>
+#ifdef HOST_STM32
+#else
 #include <avr/io.h>
 #include <avr/eeprom.h>
 #include <util/delay.h>
+#endif
 #include "print.h"
 #include "util.h"
 #include "matrix.h"
@@ -47,7 +50,7 @@ typedef uint16_t Columnstate_t;
 
 #ifdef HOST_PJRC
 // Ports for Teensy
-#else
+#elif defined(HOST_VUSB)
 // Ports for V-USB
 #define ROWS_PORT1  PORTA
 #define ROWS_DDR1   DDRA
@@ -62,6 +65,53 @@ typedef uint16_t Columnstate_t;
 #define COLS_PORT   PORTB
 #define COLS_DDR    DDRB
 #define COLS_PIN    PINB
+
+inline
+static void init_col_row(void)
+{
+  // initialize row and col
+  unselect_rows();
+  // Input with pull-up(DDR:0, PORT:1)
+  COLS_DDR = 0x00;
+  COLS_PORT = 0xFF;
+}
+
+inline
+static uint8_t read_columns(void)
+{
+    return COLS_PIN;
+}
+
+inline
+static void unselect_rows(void)
+{
+	ROWS_DDR1=0x00;
+	ROWS_PORT1=0xff;
+  ROWS_DDR2=0x00;
+  ROWS_PORT2=0xff;
+	ROWS_DDR3&=~ROWS_ALL3;
+  ROWS_PORT3|=ROWS_ALL3;
+}
+
+inline
+static void select_row(uint8_t row)
+{
+	if(row<8) {
+		ROWS_DDR1=_BV(row);
+		ROWS_PORT1=~_BV(row);
+	} else if(row<16) {
+		ROWS_DDR2=_BV(row&0x07);
+		ROWS_PORT2=~_BV(row&0x07);
+	} else {
+		uint8_t temp=_BV(row&0x03);
+		ROWS_DDR3=(ROWS_DDR3&~ROWS_ALL3)|temp;
+		ROWS_PORT3=(ROWS_PORT3|ROWS_PORT3)&~temp;
+	}
+}
+
+#else
+#define eeprom_read_block
+#define _delay_us(us)
 #endif
 
 static Columnstate_t *matrix;
@@ -72,6 +122,7 @@ static Columnstate_t _matrix1[MATRIX_ROWS];
 #ifdef MATRIX_HAS_GHOST
 static bool matrix_has_ghost_in_row(uint8_t row);
 #endif
+static void init_col_row(void);
 static Columnstate_t read_columns(void);
 static void unselect_rows(void);
 static void select_row(uint8_t row);
@@ -96,11 +147,7 @@ void matrix_init(void)
 		if(monkey_config.column <=0 || monkey_config.column > MATRIX_COLS)
 			monkey_config.column = MATRIX_COLS;
 
-    // initialize row and col
-    unselect_rows();
-    // Input with pull-up(DDR:0, PORT:1)
-    COLS_DDR = 0x00;
-    COLS_PORT = 0xFF;
+    init_col_row();
 
     // initialize matrix state: all keys off
     for (uint8_t i=0; i < MATRIX_ROWS; i++) _matrix0[i] = COLUMNSTATE_EMPTY;
@@ -198,37 +245,4 @@ uint8_t matrix_key_count(void)
 #endif
     }
     return count;
-}
-
-inline
-static uint8_t read_columns(void)
-{
-    return COLS_PIN;
-}
-
-inline
-static void unselect_rows(void)
-{
-	ROWS_DDR1=0x00;
-	ROWS_PORT1=0xff;
-  ROWS_DDR2=0x00;
-  ROWS_PORT2=0xff;
-	ROWS_DDR3&=~ROWS_ALL3;
-  ROWS_PORT3|=ROWS_ALL3;
-}
-
-inline
-static void select_row(uint8_t row)
-{
-	if(row<8) {
-		ROWS_DDR1=_BV(row);
-		ROWS_PORT1=~_BV(row);
-	} else if(row<16) {
-		ROWS_DDR2=_BV(row&0x07);
-		ROWS_PORT2=~_BV(row&0x07);
-	} else {
-		uint8_t temp=_BV(row&0x03);
-		ROWS_DDR3=(ROWS_DDR3&~ROWS_ALL3)|temp;
-		ROWS_PORT3=(ROWS_PORT3|ROWS_PORT3)&~temp;
-	}
 }

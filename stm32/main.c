@@ -49,6 +49,7 @@ int main(void)
 
   while (1)
   {
+    keyboard_proc(); 
   }
 }
 

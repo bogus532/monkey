@@ -14,6 +14,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#ifndef HOST_STM32
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -81,3 +82,5 @@ ISR(TIMER0_OVF_vect)
 {
     timer_count++;
 }
+
+#endif

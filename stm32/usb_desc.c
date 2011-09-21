@@ -19,43 +19,6 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
-#define ENDPOINT0_SIZE		64
-#ifndef VENDOR_ID
-#   define VENDOR_ID		0xFEED
-#endif
-
-#ifndef PRODUCT_ID
-#   define PRODUCT_ID		0xBABE
-#endif
-
-enum MONKEY_INTERFACE {
-  KBD_INTERFACE = 0,
-#ifdef USB_NKRO_ENABLE
-  KBD2_INTERFACE,
-#endif
-  DEBUG_INTERFACE,
-};
-enum MONKEY_ENDPOINT {
-  KBD_ENDPOINT = 1,
-#ifdef USB_NKRO_ENABLE
-  KBD2_ENDPOINT,
-#endif
-  DEBUG_TX_ENDPOINT,
-};
-
-#define KBD_SIZE		    8
-#define KBD_BUFFER		    EP_DOUBLE_BUFFER
-#define KBD_REPORT_KEYS		(KBD_SIZE - 2)
-
-// secondary keyboard
-#ifdef USB_NKRO_ENABLE
-#define KBD2_SIZE		    16
-#define KBD2_BUFFER		    EP_DOUBLE_BUFFER
-#define KBD2_REPORT_KEYS	(KBD2_SIZE - 1)
-#endif
-
-#define DEBUG_TX_SIZE		32
-#define DEBUG_TX_BUFFER		EP_DOUBLE_BUFFER
 
 /* Private macro -------------------------------------------------------------*/
 #define LSB(w)              ((uint8_t)((w)&0xff))
@@ -560,6 +523,20 @@ void monkey_set_string_descriptor(uint16_t wValue, uint16_t wIndex, const char *
 	descriptor->length = string_descriptor->bLength;
   }
 }
+const char hex_digit[] = "0123456789ABCDEF";
+
+void get_serial(char *buf, int len)
+{
+  uint8_t idx;
+  const __IO uint8_t *serial;
+
+  serial = (__IO uint8_t*)(0x1FFFF7E8);
+  for (idx=0; idx<12 && idx<(len/2-1); ++idx) {
+      buf[2*idx+0] = hex_digit[serial[idx]&0xF];
+      buf[2*idx+1] = hex_digit[(serial[idx]>>4)&0xF];
+  }
+  buf[2*idx] = 0;
+}
 
 #define EP_IN  1
 #define EP_OUT 2
@@ -579,10 +556,12 @@ void monkey_ep_init(void)
 {
   int pos, idx;
   uint16_t packet_buf_base;
-  
+  char serial[32];
+
+  get_serial(serial, sizeof(serial));
   monkey_set_string_descriptor(0x0301, 0x0409, "Sapphire Zhao");
   monkey_set_string_descriptor(0x0302, 0x0409, "Monkey Pro");
-  monkey_set_string_descriptor(0x0303, 0x0409, "Sapphire Zhao");
+  monkey_set_string_descriptor(0x0303, 0x0409, serial);
 
   ep_conf_list[0].direct = EP_IN | EP_OUT;
   ep_conf_list[0].attr = 1;

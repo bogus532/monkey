@@ -32,4 +32,4 @@ ifdef $(or MOUSEKEY_ENABLE, PS2_MOUSE_ENABLE)
 endif
 
 
-include $(COMMON_DIR)/Makefile.rules
+#include $(COMMON_DIR)/Makefile.rules

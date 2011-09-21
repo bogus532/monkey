@@ -73,15 +73,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define SYSTEM_WAKE_UP          0x0083
 
 
-#if defined(HOST_PJRC)
+#if defined(HOST_VUSB)
+#   define REPORT_KEYS 6
+#else
 #   include "usb.h"
 #   if defined(KBD2_REPORT_KEYS) && KBD2_REPORT_KEYS > KBD_REPORT_KEYS
 #       define REPORT_KEYS KBD2_REPORT_KEYS
 #   else
 #       define REPORT_KEYS KBD_REPORT_KEYS
 #   endif
-#elif defined(HOST_VUSB)
-#   define REPORT_KEYS 6
 #endif
 
 typedef struct {

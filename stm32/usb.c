@@ -17,6 +17,7 @@ uint8_t UsbIdleRate = 0;
 static uint8_t monkey_short_request_buffer[64];
 uint8_t *monkey_msg_ptr;
 uint16_t monkey_msg_length;
+volatile uint8_t usb_keyboard_leds=0;
 
 #define MONKEY_NO_PROCESS (-1)
 
@@ -202,9 +203,6 @@ void Resume(RESUME_STATE eResumeSetVal)
 
 void monkey_init(void)
 {
-  /* Update the serial number string descriptor with the data from the unique 
-  ID*/
-  Get_SerialNum();
   pInformation->Current_Configuration = 0;
   /* Connect the device */
   PowerOn();

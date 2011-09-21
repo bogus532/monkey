@@ -175,58 +175,5 @@ void GPIO_Configuration(void)
 void EXTI_Configuration(void)
 {
 }
-/*******************************************************************************
-* Function Name  : HexToChar.
-* Description    : Convert Hex 32Bits value into char.
-* Input          : None.
-* Output         : None.
-* Return         : None.
-*******************************************************************************/
-static void IntToAscii (uint32_t value , char *pbuf , uint8_t len)
-{
-  uint8_t idx = 0;
-  
-  for( idx = 0 ; idx < len ; idx ++)
-  {
-    if( ((value >> 28)) < 0xA )
-      pbuf[idx] = (value >> 28) + '0';
-    else
-      pbuf[idx] = (value >> 28) + 'A' - 10; 
-    value = value << 4;
-  }
-  pbuf[idx] = 0;
-}
-
-/*******************************************************************************
-* Function Name  : Get_SerialNum.
-* Description    : Create the serial number string descriptor.
-* Input          : None.
-* Output         : None.
-* Return         : None.
-*******************************************************************************/
-void Get_SerialNum(void)
-{
-  uint32_t Device_Serial0, Device_Serial1, Device_Serial2;
-
-#ifdef STM32L1XX_MD
-  Device_Serial0 = *(uint32_t*)(0x1FF80050);
-  Device_Serial1 = *(uint32_t*)(0x1FF80054);
-  Device_Serial2 = *(uint32_t*)(0x1FF80064);
-#else   
-  Device_Serial0 = *(__IO uint32_t*)(0x1FFFF7E8);
-  Device_Serial1 = *(__IO uint32_t*)(0x1FFFF7EC);
-  Device_Serial2 = *(__IO uint32_t*)(0x1FFFF7F0);
-#endif /* STM32L1XX_MD */ 
-  
-  Device_Serial0 += Device_Serial2;
-
-  if (Device_Serial0 != 0)
-  {
-    char buf[32];
-    IntToAscii(Device_Serial0, buf, 8);
-    IntToAscii(Device_Serial1, buf+8, 4);
-    monkey_set_string_descriptor(0x0303, 0x0409, buf);
-  }
-}
 
 /******************* (C) COPYRIGHT 2011 STMicroelectronics *****END OF FILE****/
