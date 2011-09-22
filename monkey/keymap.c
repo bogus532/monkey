@@ -20,16 +20,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <stdint.h>
 #include <stdbool.h>
-#ifdef HOST_STM32
-#define PROGMEM
-#define pgm_read_byte(p) (*(p))
-#else
-#include <avr/pgmspace.h>
-#endif
+#include "platform.h"
 #include "host.h"
 #include "usb_keycodes.h"
-#include "print.h"
-#include "debug.h"
 #include "util.h"
 #include "keymap.h"
 #include "monkey.h"
@@ -48,19 +41,6 @@ static const uint8_t PROGMEM fn_layer[] = {
     0               // Fn7
 };
 
-// Assign Fn key(0-7) to a keycode sent when release Fn key without use of the layer.
-// See layer.c for details.
-static const uint8_t PROGMEM fn_keycode[] = {
-    KB_NO,          // Fn0
-    KB_NO,          // Fn1
-    KB_SLSH,        // Fn2
-    KB_SCLN,        // Fn3
-    KB_SPC,         // Fn4
-    KB_NO,          // Fn5
-    KB_NO,          // Fn6
-    KB_NO           // Fn7
-};
-
 uint8_t keymap_get_keycode(uint8_t layer, uint8_t row, uint8_t col)
 {
 	return monkey_config.matrix[layer][row*MATRIX_COLS+col];
@@ -73,10 +53,5 @@ void keymap_set_keycode(uint8_t layer, uint8_t row, uint8_t col, uint8_t key)
 
 uint8_t keymap_fn_layer(uint8_t fn_bits)
 {
-    return pgm_read_byte(&fn_layer[biton(fn_bits)]);
-}
-
-uint8_t keymap_fn_keycode(uint8_t fn_bits)
-{
-    return pgm_read_byte(&fn_keycode[(biton(fn_bits))]);
+	return pgm_read_byte(&fn_layer[biton(fn_bits)]);
 }

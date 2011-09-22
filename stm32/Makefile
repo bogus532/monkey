@@ -86,7 +86,7 @@ VPATH = $(ROOTDIR):$(STM32DIR):$(MONKEYDIR)
 CONFIG_H = $(MONKEYDIR)/config_vusb.h
 
 ## MAIN:
-SRC = main.c hw_config.c stm32f10x_it.c usb.c usb_desc.c keymap.c matrix.c
+SRC = main.c hw_config.c stm32f10x_it.c usb.c usb_desc.c keymap.c matrix.c pin.c led.c
 
 include $(ROOTDIR)/Makefile.common
 

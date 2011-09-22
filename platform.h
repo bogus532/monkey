@@ -26,6 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #endif
 
 void timer_init(void);
+uint16_t timer_elapsed(uint16_t last);
 void delay_us(uint16_t us);
 void delay_ms(uint16_t ms);
 uint16_t tick_count(void);
@@ -35,11 +36,8 @@ int8_t sendchar(uint8_t c);
 #if MCU == cortex-m3
 #  define PROGMEM
 #  define PSTR(s) (s)
-#  define rom_byte(p) (*(p))
-#  define rom_str(p) (p)
+#  define pgm_read_byte(p) (*(p))
 #else
-#  define rom_byte(p) pgm_read_byte(p)
-#  define rom_str(p) PSTR(p)
 #endif
 
 #endif

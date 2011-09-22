@@ -31,8 +31,6 @@
 /* Private variables ---------------------------------------------------------*/
 
 ErrorStatus HSEStartUpStatus;
-uint32_t ADC_ConvertedValueX = 0;
-uint32_t ADC_ConvertedValueX_1 = 0;
 
 /* Extern variables ----------------------------------------------------------*/
 /* Private function prototypes -----------------------------------------------*/
@@ -65,7 +63,7 @@ void Set_System(void)
   
 #if defined(USB_USE_EXTERNAL_PULLUP)
   /* Enable the USB disconnect GPIO clock */
-  RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIO_DISCONNECT, ENABLE);
+  //RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIO_DISCONNECT, ENABLE);
 
   /* USB_DISCONNECT used as USB pull-up */
   GPIO_InitStructure.GPIO_Pin = USB_DISCONNECT_PIN;
@@ -73,7 +71,7 @@ void Set_System(void)
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
   GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
   GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-  GPIO_Init(USB_DISCONNECT, &GPIO_InitStructure);  
+  //GPIO_Init(USB_DISCONNECT, &GPIO_InitStructure);  
 #endif /* USB_USE_EXTERNAL_PULLUP */
   
   /* Additional EXTI configuration (configure both edges) */
@@ -131,11 +129,11 @@ void USB_Cable_Config (FunctionalState NewState)
 { 
   if (NewState != DISABLE)
   {
-    GPIO_ResetBits(USB_DISCONNECT, USB_DISCONNECT_PIN);
+    //GPIO_ResetBits(USB_DISCONNECT, USB_DISCONNECT_PIN);
   }
   else
   {
-    GPIO_SetBits(USB_DISCONNECT, USB_DISCONNECT_PIN);
+    //GPIO_SetBits(USB_DISCONNECT, USB_DISCONNECT_PIN);
   }
 }
 
@@ -150,19 +148,14 @@ void GPIO_Configuration(void)
 {
   GPIO_InitTypeDef GPIO_InitStructure;
 
-  RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIO_DISCONNECT | 
-                         RCC_APB2Periph_GPIO_IOAIN , ENABLE);  
+  //RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIO_DISCONNECT | 
+  //                       RCC_APB2Periph_GPIO_IOAIN , ENABLE);  
   
   /* USB_DISCONNECT used as USB pull-up */
   GPIO_InitStructure.GPIO_Pin = USB_DISCONNECT_PIN;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_OD;
-  GPIO_Init(USB_DISCONNECT, &GPIO_InitStructure);
-  
-  /* Configure Potentiometer IO as analog input */
-  GPIO_InitStructure.GPIO_Pin = GPIO_IOAIN_PIN;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
-  GPIO_Init(GPIO_IOAIN, &GPIO_InitStructure);
+  //GPIO_Init(USB_DISCONNECT, &GPIO_InitStructure);
 }
 
 /*******************************************************************************
@@ -176,4 +169,6 @@ void EXTI_Configuration(void)
 {
 }
 
-/******************* (C) COPYRIGHT 2011 STMicroelectronics *****END OF FILE****/
+void timer_init(void)
+{
+}

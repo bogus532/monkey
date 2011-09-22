@@ -67,18 +67,18 @@ enum MONKEY_ENDPOINT {
   DEBUG_TX_ENDPOINT,
 };
 
-#define KBD_SIZE		    8
+#define KBD_SIZE		      8
 #define KBD_BUFFER		    EP_DOUBLE_BUFFER
 #define KBD_REPORT_KEYS		(KBD_SIZE - 2)
 
 // secondary keyboard
 #ifdef USB_NKRO_ENABLE
-#define KBD2_SIZE		    16
+#define KBD2_SIZE		      16
 #define KBD2_BUFFER		    EP_DOUBLE_BUFFER
 #define KBD2_REPORT_KEYS	(KBD2_SIZE - 1)
 #endif
 
-#define DEBUG_TX_SIZE		32
+#define DEBUG_TX_SIZE		  32
 #define DEBUG_TX_BUFFER		EP_DOUBLE_BUFFER
 
 #endif

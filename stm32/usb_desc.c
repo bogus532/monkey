@@ -292,7 +292,7 @@ const uint8_t config1_descriptor[CONFIG1_DESC_SIZE] = {
 	4,		                         // bDescriptorType
 	KBD_INTERFACE,		             // bInterfaceNumber
 	0,					                   // bAlternateSetting
-	1,					                   // bNumEndpoints
+	2,					                   // bNumEndpoints
 	0x03,				                   // bInterfaceClass (0x03 = HID)
 	0x01,				                   // bInterfaceSubClass (0x01 = Boot)
 	0x01,				                   // bInterfaceProtocol (0x01 = Keyboard)
@@ -300,7 +300,7 @@ const uint8_t config1_descriptor[CONFIG1_DESC_SIZE] = {
     
 	// HID descriptor, HID 1.11 spec, section 6.2.1
 	9,					                   // bLength
-	21,                            // bDescriptorType
+	0x21,                            // bDescriptorType
 	0x11, 0x01,	                   // bcdHID
 	0,					                   // bCountryCode
 	1,					                   // bNumDescriptors
@@ -341,7 +341,7 @@ const uint8_t config1_descriptor[CONFIG1_DESC_SIZE] = {
     
 	// HID descriptor, HID 1.11 spec, section 6.2.1
 	9,					                   // bLength
-	21,                            // bDescriptorType
+	0x21,                            // bDescriptorType
 	0x11, 0x01,	                   // bcdHID
 	0,					                   // bCountryCode
 	1,					                   // bNumDescriptors
@@ -560,7 +560,7 @@ void monkey_ep_init(void)
 
   get_serial(serial, sizeof(serial));
   monkey_set_string_descriptor(0x0301, 0x0409, "Sapphire Zhao");
-  monkey_set_string_descriptor(0x0302, 0x0409, "Monkey Pro");
+  monkey_set_string_descriptor(0x0302, 0x0409, "Aikon");
   monkey_set_string_descriptor(0x0303, 0x0409, serial);
 
   ep_conf_list[0].direct = EP_IN | EP_OUT;

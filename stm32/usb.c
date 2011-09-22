@@ -4,6 +4,7 @@
 #include "usb_keycodes.h"
 #include "monkey.h"
 #include "keymap.h"
+#include "host.h"
 
 __IO uint32_t bDeviceState; /* USB device status */
 __IO bool fSuspendEnabled;  /* true when suspend is possible */
@@ -471,6 +472,22 @@ void EP1_OUT_Callback(void)
 void EP1_IN_Callback(void)
 {
   PrevXferComplete = 1;
+}
+
+int8_t usb_keyboard_send_report(report_keyboard_t *report)
+{
+    if (PrevXferComplete)
+    {
+      /* Write the descriptor through the endpoint */
+			USB_SIL_Write(EP1_IN, (uint8_t*) report, KBD_REPORT_KEYS); 
+
+      SetEPTxValid(ENDP1);
+
+      PrevXferComplete = 0;
+			return 1;
+    }
+
+    return 0;
 }
 
 /* -------------------------------------------------------------------------- */

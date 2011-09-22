@@ -47,6 +47,8 @@ int main(void)
 
   USB_Init();
 
+	keyboard_init();
+
   while (1)
   {
     keyboard_proc(); 

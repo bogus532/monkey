@@ -21,7 +21,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdint.h>
 #include <stdbool.h>
 #include "platform.h"
-#include "print.h"
 #include "util.h"
 #include "matrix.h"
 #include "monkey.h"
@@ -77,7 +76,7 @@ uint8_t matrix_scan(void)
   for (uint8_t i = 0; i < MATRIX_ROWS; i++) {
     matrixpin_clear_rows();
     matrixpin_select_row(i);
-    matrix[i] = ~read_columns();
+    matrix[i] = ~matrixpin_read_columns();
   }
   return 1;
 }
@@ -119,25 +118,6 @@ inline
 Columnstate_t matrix_get_row(uint8_t row)
 {
     return matrix[row];
-}
-
-void matrix_print(void)
-{
-    print("\nr/c 01234567\n");
-    for (uint8_t row = 0; row < matrix_rows(); row++) {
-        phex(row); print(": ");
-#if (MATRIX_COLS <= 8)
-        pbin_reverse(matrix_get_row(row));
-#else
-        pbin_reverse16(matrix_get_row(row));
-#endif
-#ifdef MATRIX_HAS_GHOST
-        if (matrix_has_ghost_in_row(row)) {
-            print(" <ghost");
-        }
-#endif
-        print("\n");
-    }
 }
 
 uint8_t matrix_key_count(void)

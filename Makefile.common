@@ -1,9 +1,5 @@
 SRC +=	host.c \
 	keyboard.c \
-	command.c \
-	layer.c \
-	timer.c \
-	print.c \
 	util.c
 
 
