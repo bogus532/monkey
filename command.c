@@ -16,18 +16,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <stdint.h>
 #include <stdbool.h>
-#ifdef HOST_STM32
-#define _delay_us(us)
-#define _delay_ms(ms)
-#else
-#include <util/delay.h>
-#endif
+#include "platform.h"
 #include "usb_keycodes.h"
 #include "host.h"
 #include "print.h"
 #include "debug.h"
 #include "util.h"
-#include "timer.h"
 #include "layer.h"
 #include "matrix.h"
 #include "command.h"
@@ -107,7 +101,7 @@ uint8_t command_proc(void)
             print(STR(DESCRIPTION) "\n");
             break;
         case KB_T: // print timer
-            print("timer: "); phex16(timer_count); print("\n");
+            print("timer: "); phex16(tick_count); print("\n");
             break;
         case KB_P: // print toggle
             if (last_print_enable) {

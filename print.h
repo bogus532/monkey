@@ -25,11 +25,7 @@
 #define PRINT_H__ 1
 
 #include <stdbool.h>
-#ifdef HOST_STM32
-#define PSTR(s) (s)
-#else
-#include <avr/pgmspace.h>
-#endif
+#include "platform.h"
 
 extern bool print_enable;
 

@@ -20,12 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <stdint.h>
 #include <stdbool.h>
-#ifdef HOST_STM32
-#else
-#include <avr/io.h>
-#include <avr/eeprom.h>
-#include <util/delay.h>
-#endif
+#include "platform.h"
 #include "print.h"
 #include "util.h"
 #include "matrix.h"
@@ -38,94 +33,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #   error "MATRIX_ROWS must not exceed 255"
 #endif
 
-
-// matrix state buffer(1:on, 0:off)
-#if (MATRIX_COLS <= 8)
-typedef uint8_t Columnstate_t;
-#define COLUMNSTATE_EMPTY     0xff
-#else
-typedef uint16_t Columnstate_t;
-#define COLUMNSTATE_EMPTY     0xffff
-#endif
-
-#ifdef HOST_PJRC
-// Ports for Teensy
-#elif defined(HOST_VUSB)
-// Ports for V-USB
-#define ROWS_PORT1  PORTA
-#define ROWS_DDR1   DDRA
-
-#define ROWS_PORT2  PORTC
-#define ROWS_DDR2   DDRC
-
-#define ROWS_PORT3  PORTD
-#define ROWS_DDR3   DDRD
-#define ROWS_ALL3   (_BV(PD6)|_BV(PD7))
-
-#define COLS_PORT   PORTB
-#define COLS_DDR    DDRB
-#define COLS_PIN    PINB
-
-inline
-static void init_col_row(void)
-{
-  // initialize row and col
-  unselect_rows();
-  // Input with pull-up(DDR:0, PORT:1)
-  COLS_DDR = 0x00;
-  COLS_PORT = 0xFF;
-}
-
-inline
-static uint8_t read_columns(void)
-{
-    return COLS_PIN;
-}
-
-inline
-static void unselect_rows(void)
-{
-	ROWS_DDR1=0x00;
-	ROWS_PORT1=0xff;
-  ROWS_DDR2=0x00;
-  ROWS_PORT2=0xff;
-	ROWS_DDR3&=~ROWS_ALL3;
-  ROWS_PORT3|=ROWS_ALL3;
-}
-
-inline
-static void select_row(uint8_t row)
-{
-	if(row<8) {
-		ROWS_DDR1=_BV(row);
-		ROWS_PORT1=~_BV(row);
-	} else if(row<16) {
-		ROWS_DDR2=_BV(row&0x07);
-		ROWS_PORT2=~_BV(row&0x07);
-	} else {
-		uint8_t temp=_BV(row&0x03);
-		ROWS_DDR3=(ROWS_DDR3&~ROWS_ALL3)|temp;
-		ROWS_PORT3=(ROWS_PORT3|ROWS_PORT3)&~temp;
-	}
-}
-
-#else
-#define eeprom_read_block
-#define _delay_us(us)
-#endif
-
 static Columnstate_t *matrix;
 static Columnstate_t *matrix_prev;
 static Columnstate_t _matrix0[MATRIX_ROWS];
 static Columnstate_t _matrix1[MATRIX_ROWS];
+static uint8_t debouncing_count[MATRIX_ROWS*MATRIX_COLS];
 
 #ifdef MATRIX_HAS_GHOST
 static bool matrix_has_ghost_in_row(uint8_t row);
 #endif
-static void init_col_row(void);
-static Columnstate_t read_columns(void);
-static void unselect_rows(void);
-static void select_row(uint8_t row);
 
 inline
 uint8_t matrix_rows(void)
@@ -141,13 +57,7 @@ uint8_t matrix_cols(void)
 
 void matrix_init(void)
 {
-		eeprom_read_block(&monkey_config, 0, sizeof(monkeyconf_t));
-		if(monkey_config.row <=0 || monkey_config.row > MATRIX_ROWS)
-			monkey_config.row = MATRIX_ROWS;
-		if(monkey_config.column <=0 || monkey_config.column > MATRIX_COLS)
-			monkey_config.column = MATRIX_COLS;
-
-    init_col_row();
+    matrixpin_init();
 
     // initialize matrix state: all keys off
     for (uint8_t i=0; i < MATRIX_ROWS; i++) _matrix0[i] = COLUMNSTATE_EMPTY;
@@ -158,46 +68,42 @@ void matrix_init(void)
 
 uint8_t matrix_scan(void)
 {
-    Columnstate_t *tmp;
+  Columnstate_t *tmp;
+  
+  tmp = matrix_prev;
+  matrix_prev = matrix;
+  matrix = tmp;
 
-    tmp = matrix_prev;
-    matrix_prev = matrix;
-    matrix = tmp;
-
-    for (uint8_t i = 0; i < MATRIX_ROWS; i++) {
-        unselect_rows();
-        select_row(i);
-        _delay_us(30);  // without this wait read unstable value.
-        matrix[i] = ~read_columns();
-    }
-    unselect_rows();
-    return 1;
+  for (uint8_t i = 0; i < MATRIX_ROWS; i++) {
+    matrixpin_clear_rows();
+    matrixpin_select_row(i);
+    matrix[i] = ~read_columns();
+  }
+  return 1;
 }
 
 bool matrix_is_modified(void)
 {
-    for (uint8_t i = 0; i < MATRIX_ROWS; i++) {
-        if (matrix[i] != matrix_prev[i])
-            return true;
-    }
-    return false;
+  for (uint8_t i = 0; i < MATRIX_ROWS; i++) {
+    if (matrix[i] != matrix_prev[i])
+      return true;
+  }
+  return false;
 }
 
 inline
 bool matrix_has_ghost(void)
 {
-	for(uint8_t r=0; r < MATRIX_ROWS-1; ++r)
-  {
+	for(uint8_t r=0; r < MATRIX_ROWS-1; ++r) {
     /* no ghost keys present for this row if no more than a single column got
      * activated */
     Columnstate_t temp=matrix[r];
-    if(!(temp&(Columnstate_t)(temp-1))) continue;
+    if(!(temp&(Columnstate_t)(temp-1)))
+      continue;
 
     /* search for equal column states, report ghost key condition if found */
     for(uint8_t s=r+1; s < MATRIX_ROWS; ++s)
-    {
       if(matrix[r] == matrix[s]) return true;
-    }
   }
 
   return false;

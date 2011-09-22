@@ -21,14 +21,10 @@
  * THE SOFTWARE.
  */
 
-#ifdef HOST_STM32
-#define pgm_read_byte(p) (*(p))
-#else
-#include <avr/io.h>
-#include <avr/pgmspace.h>
-#endif
+#include <stdint.h>
+#include <stdbool.h>
+#include "platform.h"
 #include "print.h"
-#include "sendchar.h"
 
 
 bool print_enable = false;

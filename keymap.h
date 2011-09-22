@@ -20,8 +20,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "usb_keycodes.h"
-
 
 /* keycode in specific layer */
 uint8_t keymap_get_keycode(uint8_t layer, uint8_t row, uint8_t col);

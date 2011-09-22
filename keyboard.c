@@ -14,21 +14,19 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+#include "platform.h"
 #include "keyboard.h"
 #include "host.h"
 #include "layer.h"
 #include "matrix.h"
 #include "led.h"
 #include "usb_keycodes.h"
-#include "timer.h"
 #include "print.h"
 #include "debug.h"
 #include "command.h"
 #ifdef MOUSEKEY_ENABLE
 #include "mousekey.h"
-#endif
-#ifdef USB_EXTRA_ENABLE
-#include <util/delay.h>
 #endif
 
 
@@ -54,12 +52,8 @@ void keyboard_proc(void)
     matrix_scan();
 
     if (matrix_is_modified()) {
-        if (debug_matrix) matrix_print();
-#ifdef DEBUG_LED
-        // LED flash for debug
-        DEBUG_LED_CONFIG;
-        DEBUG_LED_ON;
-#endif
+        if (debug_matrix)
+          matrix_print();
     }
 
     if (matrix_has_ghost()) {

@@ -15,10 +15,10 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "platform.h"
 #include "keymap.h"
 #include "host.h"
 #include "debug.h"
-#include "timer.h"
 #include "layer.h"
 
 
